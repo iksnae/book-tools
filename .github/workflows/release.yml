@@ -1,0 +1,91 @@
+name: Create Book Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Run when tag is pushed
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. v1.0.0)'
+        required: true
+        default: 'v0.1.0'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: iksnae/book-builder:latest
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        
+      - name: Get version
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+          fi
+          echo "VERSION: ${{ env.VERSION }}"
+        
+      - name: Build book
+        run: |
+          # Build all formats for all languages
+          TIMESTAMP=$(date +'%Y-%m-%d_%H-%M-%S')
+          echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_ENV
+          
+          echo "🔨 Building book examples..." 
+          /book/src/scripts/build.sh /github/workspace
+          
+      - name: Create release archive
+        run: |
+          mkdir -p /tmp/release
+          
+          # Prepare release archive
+          cp -r build/* /tmp/release/
+          
+          # Create release notes
+          echo "# Book Generated with Book Tools ${{ env.VERSION }}" > /tmp/release/RELEASE_NOTES.md
+          echo "" >> /tmp/release/RELEASE_NOTES.md
+          echo "Generated on: $(date)" >> /tmp/release/RELEASE_NOTES.md
+          echo "" >> /tmp/release/RELEASE_NOTES.md
+          echo "This release contains the example book in various formats:" >> /tmp/release/RELEASE_NOTES.md
+          echo "" >> /tmp/release/RELEASE_NOTES.md
+          echo "## Available Formats" >> /tmp/release/RELEASE_NOTES.md
+          
+          # List available formats in release notes
+          cd /tmp/release
+          find . -type f -name "*.pdf" | sort | sed 's/\.\//- /' >> RELEASE_NOTES.md
+          find . -type f -name "*.epub" | sort | sed 's/\.\//- /' >> RELEASE_NOTES.md
+          find . -type f -name "*.mobi" | sort | sed 's/\.\//- /' >> RELEASE_NOTES.md
+          find . -type f -name "*.html" | sort | sed 's/\.\//- /' >> RELEASE_NOTES.md
+          
+          # Create ZIP archive
+          cd /tmp
+          zip -r /github/workspace/book-release-${{ env.VERSION }}.zip release/
+          
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: book-${{ env.VERSION }}
+          path: build/
+          
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.VERSION }}
+          name: Book Release ${{ env.VERSION }}
+          body_path: /tmp/release/RELEASE_NOTES.md
+          draft: false
+          prerelease: false
+          files: |
+            book-release-${{ env.VERSION }}.zip
+            build/**/*.pdf
+            build/**/*.epub
+            build/**/*.html 

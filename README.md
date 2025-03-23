@@ -120,14 +120,35 @@ This uses the `iksnae/book-builder` Docker image that contains all necessary dep
 
 #### GitHub Actions Integration
 
-This project includes a GitHub Actions workflow that automatically builds your book whenever changes are pushed. To use it:
+This project includes GitHub Actions workflows that automate the build and release process:
 
-1. Push your book project to GitHub
-2. The workflow will automatically run on each push to the `main` branch
-3. You can also manually trigger builds with specific options via the Actions tab
-4. Built files are available as workflow artifacts
+### Automated Builds
+The build workflow automatically builds the book on pushes to the `main` branch and pull requests. You can also manually trigger builds from the Actions tab in your GitHub repository.
 
-The GitHub Actions workflow uses the same `iksnae/book-builder` Docker image, ensuring consistent builds across all environments.
+The workflow uses the `iksnae/book-builder` Docker image to ensure consistent builds across environments.
+
+### Creating Releases
+To create a new release:
+
+1. Run the provided release script:
+   ```
+   ./tag-release.sh v1.0.0
+   ```
+   
+   This will create and push a new git tag, which automatically triggers the release workflow.
+
+2. Alternatively, manually create and push a tag with a version number:
+   ```
+   git tag -a v1.0.0 -m "Release v1.0.0"
+   git push origin v1.0.0
+   ```
+
+3. The release workflow will:
+   - Build the book in all formats
+   - Create a GitHub release with release notes
+   - Attach the built books as release assets
+
+You can also manually trigger a release from the Actions tab in your GitHub repository.
 
 ## Directory Structure
 

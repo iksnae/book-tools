@@ -1,6 +1,3 @@
-const path = require('path');
-const fs = require('fs');
-const mockFs = require('mock-fs');
 const { 
   buildBook, 
   createChapter, 
@@ -25,11 +22,7 @@ jest.mock('../src/utils', () => ({
       html: true
     }
   }),
-  ensureDirectoryExists: jest.fn().mockImplementation((dir) => {
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-  }),
+  ensureDirectoryExists: jest.fn(),
   buildFileNames: jest.fn().mockImplementation((language) => ({
     input: `/project-root/build/${language}/book.md`,
     pdf: `/project-root/build/${language}/test-book.pdf`,
@@ -58,69 +51,39 @@ jest.mock('child_process', () => ({
   execSync: jest.fn().mockReturnValue('Success')
 }));
 
+// Mock fs module
+jest.mock('fs', () => ({
+  existsSync: jest.fn().mockReturnValue(true),
+  mkdirSync: jest.fn(),
+  readdirSync: jest.fn().mockReturnValue(['00-introduction.md', '01-section.md', 'images']),
+  statSync: jest.fn().mockReturnValue({ isDirectory: () => false }),
+  rmSync: jest.fn(),
+  writeFileSync: jest.fn()
+}));
+
+// Mock mock-fs to avoid using it
+jest.mock('mock-fs', () => jest.fn());
+
 describe('Main Module', () => {
   beforeEach(() => {
-    // Set up mock file system
-    mockFs({
-      '/project-root': {
-        'book.yaml': mockYamlFile(),
-        'book': {
-          'en': {
-            'chapter-01': {
-              '00-introduction.md': '# Introduction',
-              '01-section.md': '## Section 1',
-              'images': {
-                'README.md': 'Images folder'
-              }
-            },
-            'chapter-02': {
-              '00-introduction.md': '# Chapter 2 Intro',
-              'images': {}
-            }
-          },
-          'es': {
-            'chapter-01': {
-              '00-introduction.md': '# Introducción',
-              'images': {}
-            }
-          }
-        },
-        'build': {
-          'en': {
-            'book.md': '# Test Book\n\n## Chapter 1\n\n# Introduction\n\n## Section 1',
-            'test-book.pdf': Buffer.from([1, 2, 3]),
-            'test-book.epub': Buffer.from([4, 5, 6]),
-            'test-book.mobi': Buffer.from([7, 8, 9]),
-            'test-book.html': '<html><body><h1>Test Book</h1></body></html>'
-          },
-          'es': {
-            'book.md': '# Libro de Prueba\n\n## Capítulo 1\n\n# Introducción',
-            'test-book.pdf': Buffer.from([1, 2, 3])
-          }
-        }
+    // Setup minimal mock state
+    const fs = require('fs');
+    fs.existsSync.mockImplementation((path) => {
+      // Return true for directories we expect to exist
+      if (path.includes('chapter-01') || path.includes('chapter-02')) {
+        return true;
       }
+      return path !== '/project-root/book/en/chapter-99';
     });
+    
+    fs.statSync.mockImplementation((path) => ({
+      isDirectory: () => path.includes('images') || path.includes('chapter')
+    }));
   });
 
   afterEach(() => {
-    mockFs.restore();
     jest.clearAllMocks();
   });
-
-  function mockYamlFile() {
-    return `title: Test Book
-subtitle: Testing Book Tools
-author: Test Author
-filePrefix: test-book
-languages:
-  - en
-  - es
-formats:
-  pdf: true
-  epub: true
-  mobi: true
-  html: true`;
-  }
 
   describe('buildBook', () => {
     test('should build book for specified language and formats', async () => {
@@ -181,6 +144,9 @@ formats:
     });
 
     test('should return error for non-existent chapter', async () => {
+      const fs = require('fs');
+      fs.existsSync.mockReturnValueOnce(false);
+      
       const result = await checkChapter({
         chapterNumber: '99',
         language: 'en'

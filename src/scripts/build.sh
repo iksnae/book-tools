@@ -6,11 +6,19 @@
 set -e  # Exit on error
 
 # Default values
-CONFIG_FILE="../book.yaml"  # Look for config in parent directory
+SCRIPTS_DIR="$(dirname "$(realpath "$0")")"
+PROJECT_ROOT="$(dirname "$SCRIPTS_DIR")"
+
+# If first argument is a path and exists, use that as the project root
+if [ $# -gt 0 ] && [ -d "$1" ]; then
+  PROJECT_ROOT="$(realpath "$1")"
+  shift # Remove the first argument
+fi
+
+CONFIG_FILE="$PROJECT_ROOT/book.yaml"  # Look for config in project root
 SUPPORTED_LANGUAGES=""
 TARGET_LANGUAGES=""
 SKIP_FORMATS=""
-SCRIPTS_DIR="$(dirname "$0")"
 
 # Parse command line arguments
 for arg in "$@"; do
@@ -25,8 +33,9 @@ for arg in "$@"; do
       CONFIG_FILE="${arg#*=}"
       ;;
     --help)
-      echo "Usage: build.sh [options]"
+      echo "Usage: build.sh [directory] [options]"
       echo "Options:"
+      echo "  [directory]               Path to the book project (default: current working directory)"
       echo "  --languages=lang1,lang2   Only build these languages (comma-separated)"
       echo "  --skip=pdf,epub,mobi,html Skip specified output formats (comma-separated)"
       echo "  --config=path             Use alternative config file (default: book.yaml)"
@@ -38,6 +47,7 @@ done
 
 echo "📚 Starting book build process..."
 echo "📄 Using config file: $CONFIG_FILE"
+echo "📁 Project root: $PROJECT_ROOT"
 
 # Check if config file exists
 if [ ! -f "$CONFIG_FILE" ]; then
@@ -51,7 +61,7 @@ if grep -q "^languages:" "$CONFIG_FILE"; then
   SUPPORTED_LANGUAGES=$(grep "^languages:" "$CONFIG_FILE" | cut -d ':' -f 2- | sed 's/^[ \t]*//' | tr -d '[]' | tr ',' ' ')
 else
   # Discover languages from book directory structure
-  SUPPORTED_LANGUAGES=$(find "../book" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort)
+  SUPPORTED_LANGUAGES=$(find "$PROJECT_ROOT/book" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort)
 fi
 
 # Clean existing languages for clarity
@@ -77,7 +87,7 @@ fi
 echo "🔨 Building languages: $LANGUAGES_TO_BUILD"
 
 # Create clean build directory
-mkdir -p ../build
+mkdir -p "$PROJECT_ROOT/build"
 echo "🧹 Creating build directory..."
 
 # Prepare build arguments based on what to skip
@@ -95,13 +105,13 @@ for language in $LANGUAGES_TO_BUILD; do
   echo "🔄 Starting build for language: $language"
   
   # Check if language directory exists
-  if [ ! -d "../book/$language" ]; then
-    echo "⚠️ Warning: Directory ../book/$language does not exist, skipping..."
+  if [ ! -d "$PROJECT_ROOT/book/$language" ]; then
+    echo "⚠️ Warning: Directory $PROJECT_ROOT/book/$language does not exist, skipping..."
     continue
   fi
   
   # Build this language
-  "$SCRIPTS_DIR/build-language.sh" "$language" "$CONFIG_FILE"
+  "$SCRIPTS_DIR/build-language.sh" "$language" "$CONFIG_FILE" "$PROJECT_ROOT"
   
   # Check the result
   if [ $? -eq 0 ]; then
@@ -113,4 +123,4 @@ done
 
 echo ""
 echo "📦 Build process complete!"
-echo "📂 Generated files are in the build/ directory"
+echo "📂 Generated files are in the $PROJECT_ROOT/build/ directory"

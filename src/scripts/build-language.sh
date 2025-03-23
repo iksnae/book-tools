@@ -1,182 +1,85 @@
 #!/bin/bash
 
 # build-language.sh - Builds book formats for a specific language
-# Usage: build-language.sh [language] [config_file]
+# Usage: build-language.sh [language] [config_file] [project_root] [skip_pdf] [skip_epub] [skip_html] [skip_mobi]
 
 set -e  # Exit on error
 
 # Get arguments
 LANGUAGE=${1:-en}
-CONFIG_FILE=${2:-../book.yaml}
-SCRIPTS_DIR="$(dirname "$0")"
-BUILD_DIR="../build/$LANGUAGE"
+CONFIG_FILE=${2:-$(pwd)/book.yaml}
+PROJECT_ROOT=${3:-$(pwd)}
+SKIP_PDF=${4:-false}
+SKIP_EPUB=${5:-false}
+SKIP_HTML=${6:-false}
+SKIP_MOBI=${7:-false}
+
+SCRIPTS_DIR="$(dirname "$(realpath "$0")")"
+BUILD_DIR="$PROJECT_ROOT/build/$LANGUAGE"
+RESOURCES_DIR="$PROJECT_ROOT/resources"
 
 echo "🔧 Building $LANGUAGE version of the book..."
+echo "Using config file: $CONFIG_FILE"
+echo "Project root: $PROJECT_ROOT"
 
 # Load book metadata from config
-if [ -f "$CONFIG_FILE" ]; then
-  BOOK_TITLE=$(grep "^title:" "$CONFIG_FILE" | cut -d ':' -f 2- | sed 's/^[ \t]*//')
-  BOOK_SUBTITLE=$(grep "^subtitle:" "$CONFIG_FILE" | cut -d ':' -f 2- | sed 's/^[ \t]*//')
-  AUTHOR=$(grep "^author:" "$CONFIG_FILE" | cut -d ':' -f 2- | sed 's/^[ \t]*//')
-  PUBLISHER=$(grep "^publisher:" "$CONFIG_FILE" | cut -d ':' -f 2- | sed 's/^[ \t]*//')
-else
-  echo "❌ Config file not found: $CONFIG_FILE"
-  exit 1
+BOOK_TITLE=$(grep "title:" "$CONFIG_FILE" | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' || echo "Untitled Book")
+BOOK_SUBTITLE=$(grep "subtitle:" "$CONFIG_FILE" | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' || echo "")
+AUTHOR=$(grep "author:" "$CONFIG_FILE" | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' || echo "Anonymous")
+
+# Remove quotes from metadata if present
+BOOK_TITLE=$(echo "$BOOK_TITLE" | sed 's/^"//;s/"$//')
+BOOK_SUBTITLE=$(echo "$BOOK_SUBTITLE" | sed 's/^"//;s/"$//')
+AUTHOR=$(echo "$AUTHOR" | sed 's/^"//;s/"$//')
+
+echo "📚 Book Title: $BOOK_TITLE"
+if [ -n "$BOOK_SUBTITLE" ]; then
+  echo "📖 Book Subtitle: $BOOK_SUBTITLE"
 fi
+echo "✍️ Author: $AUTHOR"
 
 # Create build directory
 mkdir -p "$BUILD_DIR"
 
-# Set file paths
-MARKDOWN_OUTPUT="$BUILD_DIR/book.md"
-PDF_OUTPUT="$BUILD_DIR/book.pdf"
-EPUB_OUTPUT="$BUILD_DIR/book.epub"
-MOBI_OUTPUT="$BUILD_DIR/book.mobi"
-HTML_OUTPUT="$BUILD_DIR/book.html"
-RESOURCES_DIR="../resources"
-
 # 1. Combine markdown files
 echo "📝 Combining markdown files..."
-"$SCRIPTS_DIR/combine-markdown.sh" "$LANGUAGE" "$MARKDOWN_OUTPUT" "$BOOK_TITLE" "$BOOK_SUBTITLE"
+MARKDOWN_OUTPUT="$BUILD_DIR/book.md"
+"$SCRIPTS_DIR/combine-markdown.sh" "$LANGUAGE" "$MARKDOWN_OUTPUT" "$BOOK_TITLE" "$BOOK_SUBTITLE" "$PROJECT_ROOT"
 
-# Check if markdown was generated successfully
-if [ ! -s "$MARKDOWN_OUTPUT" ]; then
-  echo "❌ Failed to generate markdown output"
+if [ ! -f "$MARKDOWN_OUTPUT" ]; then
+  echo "❌ Error: Combined markdown file was not created."
   exit 1
 fi
 
 # 2. Generate PDF (if pandoc is available)
-if command -v pandoc &> /dev/null; then
+if command -v pandoc &> /dev/null && [ "$SKIP_PDF" != "true" ]; then
   echo "📄 Generating PDF..."
-  if [ -f "../resources/templates/pdf/template.tex" ]; then
-    echo "Using custom LaTeX template for PDF generation"
-    pandoc "$MARKDOWN_OUTPUT" -o "$PDF_OUTPUT" \
-      --pdf-engine=xelatex \
-      --toc \
-      --metadata title="$BOOK_TITLE" \
-      --metadata author="$AUTHOR" \
-      --metadata publisher="$PUBLISHER" \
-      --metadata=lang:"$LANGUAGE" \
-      --variable=fontsize:"11pt" \
-      --variable=papersize:"letter" \
-      --variable=geometry:"top=1in,right=1in,bottom=1in,left=1in" \
-      --variable=linestretch:"1.5" \
-      --template="../resources/templates/pdf/template.tex" \
-      --variable=documentclass:"book"
-    
-    if [ -f "$PDF_OUTPUT" ]; then
-      PDF_SIZE=$(du -h "$PDF_OUTPUT" | cut -f1)
-      echo "✅ Successfully created PDF with custom template: $PDF_OUTPUT ($PDF_SIZE)"
-    else
-      echo "⚠️ PDF generation with custom template failed, trying with default settings..."
-      pandoc "$MARKDOWN_OUTPUT" -o "$PDF_OUTPUT" --pdf-engine=xelatex --toc
-    fi
-  else
-    "$SCRIPTS_DIR/generate-pdf.sh" "$LANGUAGE" "$MARKDOWN_OUTPUT" "$PDF_OUTPUT" "$BOOK_TITLE" "$RESOURCES_DIR"
-  fi
-else
-  echo "⚠️ Pandoc not installed - skipping PDF generation"
+  PDF_OUTPUT="$BUILD_DIR/book.pdf"
+  "$SCRIPTS_DIR/generate-pdf.sh" "$LANGUAGE" "$MARKDOWN_OUTPUT" "$PDF_OUTPUT" "$BOOK_TITLE" "$BOOK_SUBTITLE" "resources" "$PROJECT_ROOT"
 fi
 
 # 3. Generate HTML (if pandoc is available)
-if command -v pandoc &> /dev/null; then
+if command -v pandoc &> /dev/null && [ "$SKIP_HTML" != "true" ]; then
   echo "🌐 Generating HTML..."
-  if [ -f "../resources/templates/html/default.html" ] && [ -f "../resources/css/html.css" ]; then
-    pandoc "$MARKDOWN_OUTPUT" \
-      -o "$HTML_OUTPUT" \
-      --metadata title="$BOOK_TITLE" \
-      --metadata author="$AUTHOR" \
-      --toc \
-      --standalone \
-      --template="../resources/templates/html/default.html" \
-      --css="../resources/css/html.css"
-    echo "✅ Generated HTML using custom template and CSS"
-  else
-    # Fallback to simple HTML generation
-    pandoc "$MARKDOWN_OUTPUT" \
-      -o "$HTML_OUTPUT" \
-      --metadata title="$BOOK_TITLE" \
-      --metadata author="$AUTHOR" \
-      --toc \
-      --standalone
-    echo "✅ Generated HTML with default styling"
-  fi
-else
-  echo "⚠️ Pandoc not installed - skipping HTML generation"
+  HTML_OUTPUT="$BUILD_DIR/book.html"
+  "$SCRIPTS_DIR/generate-html.sh" "$LANGUAGE" "$MARKDOWN_OUTPUT" "$HTML_OUTPUT" "$BOOK_TITLE" "$BOOK_SUBTITLE" "resources" "$PROJECT_ROOT"
 fi
 
 # 4. Generate EPUB
-if command -v pandoc &> /dev/null; then
+if command -v pandoc &> /dev/null && [ "$SKIP_EPUB" != "true" ]; then
   echo "📱 Generating EPUB..."
-  if [ -f "../resources/templates/epub/template.html" ] && [ -f "../resources/css/epub.css" ]; then
-    pandoc "$MARKDOWN_OUTPUT" \
-      -o "$EPUB_OUTPUT" \
-      --metadata title="$BOOK_TITLE" \
-      --metadata subtitle="$BOOK_SUBTITLE" \
-      --metadata author="$AUTHOR" \
-      --metadata publisher="$PUBLISHER" \
-      --metadata lang="$LANGUAGE" \
-      --toc \
-      --epub-chapter-level=1 \
-      --css="../resources/css/epub.css" \
-      --template="../resources/templates/epub/template.html"
-    echo "✅ Generated EPUB using custom template and CSS"
-  else
-    # Fallback to simple EPUB generation
-    pandoc "$MARKDOWN_OUTPUT" \
-      -o "$EPUB_OUTPUT" \
-      --metadata title="$BOOK_TITLE" \
-      --metadata subtitle="$BOOK_SUBTITLE" \
-      --metadata author="$AUTHOR" \
-      --toc \
-      --epub-chapter-level=1
-    echo "✅ Generated EPUB with default styling"
-  fi
-else
-  echo "⚠️ Pandoc not installed - skipping EPUB generation"
+  EPUB_OUTPUT="$BUILD_DIR/book.epub"
+  "$SCRIPTS_DIR/generate-epub.sh" "$LANGUAGE" "$MARKDOWN_OUTPUT" "$EPUB_OUTPUT" "$BOOK_TITLE" "$BOOK_SUBTITLE" "resources" "$PROJECT_ROOT"
 fi
 
 # 5. Generate MOBI (if kindlegen or ebook-convert is available)
-if command -v kindlegen &> /dev/null || command -v ebook-convert &> /dev/null; then
+if (command -v kindlegen &> /dev/null || command -v ebook-convert &> /dev/null) && [ "$SKIP_MOBI" != "true" ] && [ "$SKIP_EPUB" != "true" ]; then
   echo "📚 Generating MOBI..."
-  "$SCRIPTS_DIR/generate-mobi.sh" "$LANGUAGE" "$EPUB_OUTPUT" "$MOBI_OUTPUT" "$BOOK_TITLE"
-else
-  echo "⚠️ Neither kindlegen nor Calibre installed - skipping MOBI generation"
+  MOBI_OUTPUT="$BUILD_DIR/book.mobi"
+  "$SCRIPTS_DIR/generate-mobi.sh" "$LANGUAGE" "$EPUB_OUTPUT" "$MOBI_OUTPUT" "$PROJECT_ROOT"
 fi
 
-# Print summary of generated files
-echo "✅ Build complete for language: $LANGUAGE"
-echo ""
-echo "Generated files:"
-
-if [ -f "$MARKDOWN_OUTPUT" ]; then
-  MARKDOWN_SIZE=$(du -h "$MARKDOWN_OUTPUT" | cut -f1)
-  echo " - Markdown: $MARKDOWN_OUTPUT ($MARKDOWN_SIZE)"
-fi
-
-if [ -f "$HTML_OUTPUT" ]; then
-  HTML_SIZE=$(du -h "$HTML_OUTPUT" | cut -f1)
-  echo " - HTML: $HTML_OUTPUT ($HTML_SIZE)"
-fi
-
-if [ -f "$PDF_OUTPUT" ]; then
-  PDF_SIZE=$(du -h "$PDF_OUTPUT" | cut -f1)
-  echo " - PDF: $PDF_OUTPUT ($PDF_SIZE)"
-fi
-
-if [ -f "$EPUB_OUTPUT" ]; then
-  EPUB_SIZE=$(du -h "$EPUB_OUTPUT" | cut -f1)
-  echo " - EPUB: $EPUB_OUTPUT ($EPUB_SIZE)"
-fi
-
-if [ -f "$MOBI_OUTPUT" ]; then
-  MOBI_SIZE=$(du -h "$MOBI_OUTPUT" | cut -f1)
-  echo " - MOBI: $MOBI_OUTPUT ($MOBI_SIZE)"
-fi
-
-# Get word count from markdown
-if [ -f "$MARKDOWN_OUTPUT" ]; then
-  WORD_COUNT=$(wc -w < "$MARKDOWN_OUTPUT" | xargs)
-  echo ""
-  echo "📊 Word count: $WORD_COUNT words"
-fi 
+# Print success message with generated files
+echo "✅ Build completed for $LANGUAGE version."
+echo "📚 Generated files:"
+ls -lh "$BUILD_DIR" 

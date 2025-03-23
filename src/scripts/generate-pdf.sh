@@ -1,16 +1,18 @@
 #!/bin/bash
 
 # generate-pdf.sh - Generates PDF version of the book
-# Usage: generate-pdf.sh [language] [input_file] [output_file] [book_title] [resource_paths]
+# Usage: generate-pdf.sh [language] [input_file] [output_file] [book_title] [book_subtitle] [resources_dir] [project_root]
 
 set -e  # Exit on error
 
 # Get arguments
 LANGUAGE=${1:-en}
-INPUT_FILE=${2:-build/book.md}
-OUTPUT_FILE=${3:-build/book.pdf}
-BOOK_TITLE=${4:-"My Book"}
-RESOURCE_PATHS=${5:-".:book:book/$LANGUAGE:build:book/$LANGUAGE/images:book/images:build/images:build/$LANGUAGE/images"}
+INPUT_FILE=${2:-"output.md"}
+OUTPUT_FILE=${3:-"book.pdf"}
+BOOK_TITLE=${4:-"Book Title"}
+BOOK_SUBTITLE=${5:-"Book Subtitle"}
+RESOURCES_DIR=${6:-"resources"}
+PROJECT_ROOT=${7:-$(pwd)}
 
 echo "📄 Generating PDF for $LANGUAGE..."
 
@@ -26,77 +28,90 @@ if [ ! -f "$SAFE_INPUT_FILE" ]; then
   cp "$INPUT_FILE" "$SAFE_INPUT_FILE"
 fi
 
+# Path to the configuration file
+CONFIG_FILE="$PROJECT_ROOT/book.yaml"
+
+# Check if pandoc is installed
+if ! command -v pandoc &> /dev/null; then
+    echo "❌ Error: pandoc is not installed. Please install it before continuing."
+    exit 1
+fi
+
+# Set default PDF values
+PDF_FONTSIZE=${PDF_FONTSIZE:-12pt}
+PDF_PAPERSIZE=${PDF_PAPERSIZE:-a4}
+PDF_MARGIN_TOP=${PDF_MARGIN_TOP:-1in}
+PDF_MARGIN_RIGHT=${PDF_MARGIN_RIGHT:-1in}
+PDF_MARGIN_BOTTOM=${PDF_MARGIN_BOTTOM:-1in}
+PDF_MARGIN_LEFT=${PDF_MARGIN_LEFT:-1in}
+PDF_LINEHEIGHT=${PDF_LINEHEIGHT:-1.5}
+
+# If we have a config file, read PDF settings from it
+if [ -f "$CONFIG_FILE" ]; then
+    # Read PDF values from book.yaml if present
+    PDF_FONTSIZE=$(grep "pdf_fontsize:" "$CONFIG_FILE" | cut -d':' -f2 | tr -d ' ' || echo "$PDF_FONTSIZE")
+    PDF_PAPERSIZE=$(grep "pdf_papersize:" "$CONFIG_FILE" | cut -d':' -f2 | tr -d ' ' || echo "$PDF_PAPERSIZE")
+    PDF_MARGIN_TOP=$(grep "pdf_margin_top:" "$CONFIG_FILE" | cut -d':' -f2 | tr -d ' ' || echo "$PDF_MARGIN_TOP")
+    PDF_MARGIN_RIGHT=$(grep "pdf_margin_right:" "$CONFIG_FILE" | cut -d':' -f2 | tr -d ' ' || echo "$PDF_MARGIN_RIGHT")
+    PDF_MARGIN_BOTTOM=$(grep "pdf_margin_bottom:" "$CONFIG_FILE" | cut -d':' -f2 | tr -d ' ' || echo "$PDF_MARGIN_BOTTOM")
+    PDF_MARGIN_LEFT=$(grep "pdf_margin_left:" "$CONFIG_FILE" | cut -d':' -f2 | tr -d ' ' || echo "$PDF_MARGIN_LEFT")
+    PDF_LINEHEIGHT=$(grep "pdf_lineheight:" "$CONFIG_FILE" | cut -d':' -f2 | tr -d ' ' || echo "$PDF_LINEHEIGHT")
+fi
+
 # Check for custom LaTeX template
-PDF_TEMPLATE=""
-if [ -f "../resources/templates/pdf/template.tex" ]; then
-  PDF_TEMPLATE="../resources/templates/pdf/template.tex"
-  echo "Using custom LaTeX template: $PDF_TEMPLATE"
-elif [ -f "../resources/templates/pdf/$LANGUAGE-template.tex" ]; then
-  PDF_TEMPLATE="../resources/templates/pdf/$LANGUAGE-template.tex"
-  echo "Using language-specific LaTeX template: $PDF_TEMPLATE"
+LATEX_TEMPLATE=""
+if [ -f "$PROJECT_ROOT/$RESOURCES_DIR/templates/latex/template.tex" ]; then
+    LATEX_TEMPLATE="--template=$PROJECT_ROOT/$RESOURCES_DIR/templates/latex/template.tex"
 fi
 
-# Get PDF-specific settings from book.yaml if available
-PDF_FONT_SIZE="11pt"
-PDF_PAPER_SIZE="letter"
-PDF_MARGIN_TOP="1in"
-PDF_MARGIN_RIGHT="1in"
-PDF_MARGIN_BOTTOM="1in"
-PDF_MARGIN_LEFT="1in"
-PDF_LINE_HEIGHT="1.5"
-PDF_DOCUMENT_CLASS="book"  # Use 'book' as default
-
-if [ -f "book.yaml" ]; then
-  # Extract PDF settings if they exist
-  if grep -q "pdf:" book.yaml; then
-    # Font size
-    YAML_FONT_SIZE=$(grep 'font_size:' book.yaml | grep -A 10 'pdf:' | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' | sed 's/\"//g')
-    if [ -n "$YAML_FONT_SIZE" ]; then
-      PDF_FONT_SIZE="$YAML_FONT_SIZE"
-    fi
-    
-    # Paper size
-    YAML_PAPER_SIZE=$(grep 'paper_size:' book.yaml | grep -A 10 'pdf:' | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' | sed 's/\"//g')
-    if [ -n "$YAML_PAPER_SIZE" ]; then
-      PDF_PAPER_SIZE="$YAML_PAPER_SIZE"
-    fi
-    
-    # Margins
-    YAML_MARGIN_TOP=$(grep 'margin_top:' book.yaml | grep -A 10 'pdf:' | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' | sed 's/\"//g')
-    if [ -n "$YAML_MARGIN_TOP" ]; then
-      PDF_MARGIN_TOP="$YAML_MARGIN_TOP"
-    fi
-    
-    YAML_MARGIN_RIGHT=$(grep 'margin_right:' book.yaml | grep -A 10 'pdf:' | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' | sed 's/\"//g')
-    if [ -n "$YAML_MARGIN_RIGHT" ]; then
-      PDF_MARGIN_RIGHT="$YAML_MARGIN_RIGHT"
-    fi
-    
-    YAML_MARGIN_BOTTOM=$(grep 'margin_bottom:' book.yaml | grep -A 10 'pdf:' | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' | sed 's/\"//g')
-    if [ -n "$YAML_MARGIN_BOTTOM" ]; then
-      PDF_MARGIN_BOTTOM="$YAML_MARGIN_BOTTOM"
-    fi
-    
-    YAML_MARGIN_LEFT=$(grep 'margin_left:' book.yaml | grep -A 10 'pdf:' | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' | sed 's/\"//g')
-    if [ -n "$YAML_MARGIN_LEFT" ]; then
-      PDF_MARGIN_LEFT="$YAML_MARGIN_LEFT"
-    fi
-    
-    # Line height
-    YAML_LINE_HEIGHT=$(grep 'line_height:' book.yaml | grep -A 10 'pdf:' | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' | sed 's/\"//g')
-    if [ -n "$YAML_LINE_HEIGHT" ]; then
-      PDF_LINE_HEIGHT="$YAML_LINE_HEIGHT"
-    fi
-  fi
+# Check for custom LaTeX header
+LATEX_HEADER=""
+if [ -f "$PROJECT_ROOT/$RESOURCES_DIR/templates/latex/header.tex" ]; then
+    LATEX_HEADER="--include-in-header=$PROJECT_ROOT/$RESOURCES_DIR/templates/latex/header.tex"
 fi
+
+# Check for custom LaTeX before-body
+LATEX_BEFORE_BODY=""
+if [ -f "$PROJECT_ROOT/$RESOURCES_DIR/templates/latex/before-body.tex" ]; then
+    LATEX_BEFORE_BODY="--include-before-body=$PROJECT_ROOT/$RESOURCES_DIR/templates/latex/before-body.tex"
+fi
+
+# Check for custom LaTeX after-body
+LATEX_AFTER_BODY=""
+if [ -f "$PROJECT_ROOT/$RESOURCES_DIR/templates/latex/after-body.tex" ]; then
+    LATEX_AFTER_BODY="--include-after-body=$PROJECT_ROOT/$RESOURCES_DIR/templates/latex/after-body.tex"
+fi
+
+# Check for a PDF cover image
+COVER_IMAGE=""
+if [ -f "$PROJECT_ROOT/$RESOURCES_DIR/images/cover.pdf" ]; then
+    COVER_IMAGE="--pdf-engine-opt=-Dcover-image=$PROJECT_ROOT/$RESOURCES_DIR/images/cover.pdf"
+elif [ -f "$PROJECT_ROOT/$RESOURCES_DIR/images/cover.jpg" ]; then
+    COVER_IMAGE="--pdf-engine-opt=-Dcover-image=$PROJECT_ROOT/$RESOURCES_DIR/images/cover.jpg"
+elif [ -f "$PROJECT_ROOT/$RESOURCES_DIR/images/cover.png" ]; then
+    COVER_IMAGE="--pdf-engine-opt=-Dcover-image=$PROJECT_ROOT/$RESOURCES_DIR/images/cover.png"
+fi
+
+# Check for custom styles
+PDF_STYLE=""
+if [ -f "$PROJECT_ROOT/$RESOURCES_DIR/css/pdf.css" ]; then
+    PDF_STYLE="--css=$PROJECT_ROOT/$RESOURCES_DIR/css/pdf.css"
+fi
+
+# Create a variable for image path
+IMAGE_PATH="$PROJECT_ROOT/$RESOURCES_DIR/images"
 
 echo "PDF Settings:"
-echo "  - Font Size: $PDF_FONT_SIZE"
-echo "  - Paper Size: $PDF_PAPER_SIZE"
+echo "  - Font Size: $PDF_FONTSIZE"
+echo "  - Paper Size: $PDF_PAPERSIZE"
 echo "  - Margins: $PDF_MARGIN_TOP, $PDF_MARGIN_RIGHT, $PDF_MARGIN_BOTTOM, $PDF_MARGIN_LEFT"
-echo "  - Line Height: $PDF_LINE_HEIGHT"
-echo "  - Document Class: $PDF_DOCUMENT_CLASS"
-echo "  - Template: $PDF_TEMPLATE"
+echo "  - Line Height: $PDF_LINEHEIGHT"
+echo "  - Template: $LATEX_TEMPLATE"
+echo "  - Header: $LATEX_HEADER"
+echo "  - Before Body: $LATEX_BEFORE_BODY"
+echo "  - After Body: $LATEX_AFTER_BODY"
+echo "  - Cover Image: $COVER_IMAGE"
+echo "  - Style: $PDF_STYLE"
 
 # Set publisher and author from book.yaml if not already defined
 if [ -z "$BOOK_AUTHOR" ] && [ -f "book.yaml" ]; then
@@ -120,22 +135,28 @@ PANDOC_COMMON_PARAMS="--pdf-engine=xelatex \
   --metadata author=\"$BOOK_AUTHOR\" \
   --metadata publisher=\"$PUBLISHER\" \
   --metadata=lang:\"$LANGUAGE\" \
-  --variable=fontsize:\"$PDF_FONT_SIZE\" \
-  --variable=papersize:\"$PDF_PAPER_SIZE\" \
+  --variable=fontsize:\"$PDF_FONTSIZE\" \
+  --variable=papersize:\"$PDF_PAPERSIZE\" \
   --variable=geometry:\"top=$PDF_MARGIN_TOP,right=$PDF_MARGIN_RIGHT,bottom=$PDF_MARGIN_BOTTOM,left=$PDF_MARGIN_LEFT\" \
-  --variable=linestretch:\"$PDF_LINE_HEIGHT\" \
-  --resource-path=\"$RESOURCE_PATHS\""
+  --variable=linestretch:\"$PDF_LINEHEIGHT\" \
+  --resource-path=\"$IMAGE_PATH\""
 
 # First attempt: Use LaTeX template if available
-if [ -n "$PDF_TEMPLATE" ]; then
-  echo "Using LaTeX template: $PDF_TEMPLATE"
+if [ -n "$LATEX_TEMPLATE" ]; then
+  echo "Using LaTeX template: $LATEX_TEMPLATE"
   
   # Run pandoc with the template and capture any warnings
   set +e  # Temporarily disable exit on error
   WARNINGS=$(pandoc "$INPUT_FILE" -o "$OUTPUT_FILE" \
     $PANDOC_COMMON_PARAMS \
-    --template="$PDF_TEMPLATE" \
-    --variable=documentclass:"$PDF_DOCUMENT_CLASS" 2>&1)
+    --template="$LATEX_TEMPLATE" \
+    --variable=documentclass:"book" \
+    $LATEX_HEADER \
+    $LATEX_BEFORE_BODY \
+    $LATEX_AFTER_BODY \
+    $COVER_IMAGE \
+    $PDF_STYLE \
+    2>&1)
   RESULT=$?
   set -e  # Re-enable exit on error
   
@@ -151,7 +172,10 @@ else
   set +e  # Temporarily disable exit on error
   WARNINGS=$(pandoc "$INPUT_FILE" -o "$OUTPUT_FILE" \
     $PANDOC_COMMON_PARAMS \
-    --variable=documentclass:"$PDF_DOCUMENT_CLASS" 2>&1)
+    --variable=documentclass:"book" \
+    $COVER_IMAGE \
+    $PDF_STYLE \
+    2>&1)
   RESULT=$?
   set -e  # Re-enable exit on error
   
@@ -176,7 +200,10 @@ if [ $RESULT -ne 0 ] || [ ! -s "$OUTPUT_FILE" ]; then
   pandoc "${SAFE_INPUT_FILE}.tmp" -o "$OUTPUT_FILE" \
     $PANDOC_COMMON_PARAMS \
     --variable=graphics=true \
-    --variable=documentclass=book || true
+    --variable=documentclass=book \
+    $COVER_IMAGE \
+    $PDF_STYLE \
+    || true
   set -e  # Re-enable exit on error
   
   # If still not successful, create a minimal PDF
@@ -189,7 +216,10 @@ if [ $RESULT -ne 0 ] || [ ! -s "$OUTPUT_FILE" ]; then
     # Final attempt: minimal PDF with no images
     set +e  # Temporarily disable exit on error
     pandoc "${SAFE_INPUT_FILE}.noimg" -o "$OUTPUT_FILE" \
-      $PANDOC_COMMON_PARAMS || true
+      $PANDOC_COMMON_PARAMS \
+      $COVER_IMAGE \
+      $PDF_STYLE \
+      || true
     set -e  # Re-enable exit on error
     
     # If all else fails, create a placeholder PDF

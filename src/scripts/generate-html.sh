@@ -1,21 +1,26 @@
 #!/bin/bash
 
 # generate-html.sh - Generates HTML from a markdown file
-# Usage: generate-html.sh [language] [input_file] [output_file] [book_title] [resource_paths]
+# Usage: generate-html.sh [language] [input_file] [output_file] [book_title] [book_subtitle] [resources_dir] [project_root]
 
 set -e  # Exit on error
 
 # Get parameters
 LANGUAGE=${1:-en}
-INPUT_FILE=${2:-build/book.md}
-OUTPUT_FILE=${3:-build/book.html}
-BOOK_TITLE=${4:-"My Book"}
-RESOURCE_PATHS=${5:-".:book:book/$LANGUAGE:build"}
+INPUT_FILE=${2:-"output.md"}
+OUTPUT_FILE=${3:-"book.html"}
+BOOK_TITLE=${4:-"Book Title"}
+BOOK_SUBTITLE=${5:-"Book Subtitle"}
+RESOURCES_DIR=${6:-"resources"}
+PROJECT_ROOT=${7:-$(pwd)}
 
 echo "🌐 Generating HTML for language: $LANGUAGE"
 echo "  Input file: $INPUT_FILE"
 echo "  Output file: $OUTPUT_FILE"
 echo "  Book title: $BOOK_TITLE"
+echo "  Book subtitle: $BOOK_SUBTITLE"
+echo "  Resources directory: $RESOURCES_DIR"
+echo "  Project root: $PROJECT_ROOT"
 
 # Check if input file exists
 if [ ! -f "$INPUT_FILE" ]; then
@@ -23,34 +28,37 @@ if [ ! -f "$INPUT_FILE" ]; then
   exit 1
 fi
 
-# Ensure output directory exists
-mkdir -p "$(dirname "$OUTPUT_FILE")"
-
-# Check if custom HTML template exists
-HTML_TEMPLATE=""
-if [ -f "../resources/templates/html/template.html" ]; then
-  HTML_TEMPLATE="--template=../resources/templates/html/template.html"
-  echo "Using custom HTML template: ../resources/templates/html/template.html"
-elif [ -f "../resources/templates/html/default.html" ]; then
-  HTML_TEMPLATE="--template=../resources/templates/html/default.html"
-  echo "Using default HTML template: ../resources/templates/html/default.html"
-elif [ -f "../resources/templates/html/$LANGUAGE-template.html" ]; then
-  HTML_TEMPLATE="--template=../resources/templates/html/$LANGUAGE-template.html"
-  echo "Using language-specific HTML template: ../resources/templates/html/$LANGUAGE-template.html"
+# Check if pandoc is installed
+if ! command -v pandoc &> /dev/null; then
+  echo "❌ Error: pandoc is not installed. Please install it before continuing."
+  exit 1
 fi
 
-# Check for HTML style
+# Check for custom HTML template
+HTML_TEMPLATE=""
+if [ -f "$PROJECT_ROOT/$RESOURCES_DIR/templates/html/template.html" ]; then
+  HTML_TEMPLATE="--template=$PROJECT_ROOT/$RESOURCES_DIR/templates/html/template.html"
+  echo "Using custom HTML template: $PROJECT_ROOT/$RESOURCES_DIR/templates/html/template.html"
+elif [ -f "$PROJECT_ROOT/$RESOURCES_DIR/templates/html/default.html" ]; then
+  HTML_TEMPLATE="--template=$PROJECT_ROOT/$RESOURCES_DIR/templates/html/default.html"
+  echo "Using default HTML template: $PROJECT_ROOT/$RESOURCES_DIR/templates/html/default.html"
+elif [ -f "$PROJECT_ROOT/$RESOURCES_DIR/templates/html/$LANGUAGE-template.html" ]; then
+  HTML_TEMPLATE="--template=$PROJECT_ROOT/$RESOURCES_DIR/templates/html/$LANGUAGE-template.html"
+  echo "Using language-specific HTML template: $PROJECT_ROOT/$RESOURCES_DIR/templates/html/$LANGUAGE-template.html"
+fi
+
+# Check for custom CSS
 HTML_STYLE=""
-if [ -f "../resources/css/html.css" ]; then
-  HTML_STYLE="--css=../resources/css/html.css"
-  echo "Using custom HTML style: ../resources/css/html.css"
-elif [ -f "../resources/css/$LANGUAGE-html.css" ]; then
-  HTML_STYLE="--css=../resources/css/$LANGUAGE-html.css"
-  echo "Using language-specific HTML style: ../resources/css/$LANGUAGE-html.css"
+if [ -f "$PROJECT_ROOT/$RESOURCES_DIR/css/html.css" ]; then
+  HTML_STYLE="--css=$PROJECT_ROOT/$RESOURCES_DIR/css/html.css"
+  echo "Using custom HTML style: $PROJECT_ROOT/$RESOURCES_DIR/css/html.css"
+elif [ -f "$PROJECT_ROOT/$RESOURCES_DIR/css/$LANGUAGE-html.css" ]; then
+  HTML_STYLE="--css=$PROJECT_ROOT/$RESOURCES_DIR/css/$LANGUAGE-html.css"
+  echo "Using language-specific HTML style: $PROJECT_ROOT/$RESOURCES_DIR/css/$LANGUAGE-html.css"
 else
   # Create a basic style if none exists
-  mkdir -p ../resources/css
-  cat > ../resources/css/html.css << EOF
+  mkdir -p "$PROJECT_ROOT/$RESOURCES_DIR/css"
+  cat > "$PROJECT_ROOT/$RESOURCES_DIR/css/html.css" << EOF
 /* Default styles for HTML output */
 body {
   max-width: 800px;
@@ -140,13 +148,14 @@ nav ul {
   }
 }
 EOF
-  HTML_STYLE="--css=../resources/css/html.css"
-  echo "Created default HTML style: ../resources/css/html.css"
+  HTML_STYLE="--css=$PROJECT_ROOT/$RESOURCES_DIR/css/html.css"
+  echo "Created default HTML style: $PROJECT_ROOT/$RESOURCES_DIR/css/html.css"
 fi
 
 # Define HTML metadata
 HTML_METADATA=(
   "--metadata=title:$BOOK_TITLE"
+  "--metadata=subtitle:$BOOK_SUBTITLE"
   "--metadata=lang:$LANGUAGE"
 )
 
@@ -156,19 +165,19 @@ if [ -n "$BOOK_AUTHOR" ]; then
 fi
 
 # Ensure image paths are correctly handled
-IMAGE_PATHS="--resource-path=$RESOURCE_PATHS"
+IMAGE_PATH="$PROJECT_ROOT/$RESOURCES_DIR/images"
 
 # Create a build/images directory for HTML output if it doesn't exist
-mkdir -p "build/images"
+mkdir -p "$PROJECT_ROOT/$RESOURCES_DIR/images"
 
 # Copy book images to build/images for HTML use
 if [ -d "book/images" ]; then
-  cp -r book/images/* build/images/ 2>/dev/null || true
+  cp -r book/images/* "$PROJECT_ROOT/$RESOURCES_DIR/images/" 2>/dev/null || true
 fi
 
 # Copy language-specific images if they exist
 if [ -d "book/$LANGUAGE/images" ]; then
-  cp -r "book/$LANGUAGE/images/"* build/images/ 2>/dev/null || true
+  cp -r "book/$LANGUAGE/images/"* "$PROJECT_ROOT/$RESOURCES_DIR/images/" 2>/dev/null || true
 fi
 
 # Set HTML-specific options
@@ -187,7 +196,7 @@ PANDOC_CMD=(
   "$INPUT_FILE"
   "-o" "$OUTPUT_FILE"
   "${HTML_METADATA[@]}"
-  "$IMAGE_PATHS"
+  "$IMAGE_PATH"
   "${HTML_OPTIONS[@]}"
 )
 

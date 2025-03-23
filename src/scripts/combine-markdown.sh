@@ -1,56 +1,48 @@
 #!/bin/bash
 
-# combine-markdown.sh - Combines markdown files for a specific language
-# Usage: combine-markdown.sh [language] [output_path] [book_title] [book_subtitle]
+# combine-markdown.sh - Combines markdown files from the book directory
+# Usage: combine-markdown.sh [language] [output_file] [book_title] [book_subtitle] [project_root]
 
 set -e  # Exit on error
 
 # Get arguments
 LANGUAGE=${1:-en}
-OUTPUT_PATH=${2:-build/book.md}
-BOOK_TITLE=${3:-"My Book"}
-BOOK_SUBTITLE=${4:-"A Book Built with the Template System"}
+OUTPUT_PATH=${2:-book.md}
+BOOK_TITLE=${3:-"Test Book"}
+BOOK_SUBTITLE=${4:-"A Test Book"}
+PROJECT_ROOT=${5:-$(pwd)}
 
 echo "📝 Combining markdown files for $LANGUAGE..."
 echo "  - Language: $LANGUAGE"
 echo "  - Output: $OUTPUT_PATH"
 echo "  - Title: $BOOK_TITLE"
 
+# Get author, publisher etc. from book.yaml
+BOOK_YAML="$PROJECT_ROOT/book.yaml"
+echo "Reading metadata from $BOOK_YAML..."
+
+if [ -f "$BOOK_YAML" ]; then
+  BOOK_AUTHOR=$(grep "^author:" "$BOOK_YAML" | cut -d ':' -f 2- | sed 's/^[ \t]*//')
+  PUBLISHER=$(grep "^publisher:" "$BOOK_YAML" | cut -d ':' -f 2- | sed 's/^[ \t]*//')
+  LANGUAGE_DIR="$PROJECT_ROOT/book/$LANGUAGE"
+else
+  BOOK_AUTHOR="Test Author"
+  PUBLISHER="Test Publisher"
+  LANGUAGE_DIR="$PROJECT_ROOT/book/$LANGUAGE"
+fi
+
+# Check that the language directory exists
+echo "Checking $LANGUAGE_DIR directory..."
+if [ ! -d "$LANGUAGE_DIR" ]; then
+  echo "❌ Language directory not found: $LANGUAGE_DIR"
+  exit 1
+fi
+
 # Make sure the parent directory exists
 mkdir -p "$(dirname "$OUTPUT_PATH")"
 
 # Clear the file if it exists
 true > "$OUTPUT_PATH"
-
-# Read metadata from book.yaml if it exists
-if [ -f "../book.yaml" ]; then
-  echo "Reading metadata from ../book.yaml..."
-  
-  # Get publisher if available
-  PUBLISHER=$(grep 'publisher:' ../book.yaml | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' | sed 's/\"//g')
-  if [ -z "$PUBLISHER" ]; then
-    PUBLISHER="Publisher Name"
-  fi
-  
-  # Get author if not already set
-  if [ -z "$BOOK_AUTHOR" ]; then
-    BOOK_AUTHOR=$(grep 'author:' ../book.yaml | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' | sed 's/\"//g')
-    if [ -z "$BOOK_AUTHOR" ]; then
-      BOOK_AUTHOR="Author Name"
-    fi
-  fi
-  
-  # Get rights/copyright info if available
-  COPYRIGHT=$(grep 'rights:' ../book.yaml | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' | sed 's/\"//g')
-  
-  # Other metadata
-  DESCRIPTION=$(grep 'description:' ../book.yaml | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' | sed 's/\"//g')
-else
-  PUBLISHER="Publisher Name"
-  [ -z "$BOOK_AUTHOR" ] && BOOK_AUTHOR="Author Name"
-  COPYRIGHT=""
-  DESCRIPTION=""
-fi
 
 # Add metadata header
 cat > "$OUTPUT_PATH" << EOF
@@ -63,18 +55,11 @@ language: "$LANGUAGE"
 toc: true
 EOF
 
-# Add optional metadata fields if they exist
-if [ -n "$COPYRIGHT" ]; then
-  echo "rights: \"$COPYRIGHT\"" >> "$OUTPUT_PATH"
-fi
-
-if [ -n "$DESCRIPTION" ]; then
-  echo "description: \"$DESCRIPTION\"" >> "$OUTPUT_PATH"
-fi
-
 # Add cover image metadata if a cover image exists
-if [ -n "$COVER_IMAGE" ]; then
-  echo "cover-image: \"$COVER_IMAGE\"" >> "$OUTPUT_PATH"
+if [ -f "$PROJECT_ROOT/resources/images/cover.jpg" ]; then
+  echo "cover-image: \"$PROJECT_ROOT/resources/images/cover.jpg\"" >> "$OUTPUT_PATH"
+elif [ -f "$PROJECT_ROOT/resources/images/cover.png" ]; then
+  echo "cover-image: \"$PROJECT_ROOT/resources/images/cover.png\"" >> "$OUTPUT_PATH"
 fi
 
 # Close the metadata block
@@ -83,97 +68,93 @@ cat >> "$OUTPUT_PATH" << EOF
 
 EOF
 
-# Check for language directory structure
-echo "Checking ../book/$LANGUAGE directory..."
-if [ ! -d "../book/$LANGUAGE" ]; then
-  echo "❌ Error: Language directory ../book/$LANGUAGE does not exist!"
-  exit 1
+# Find all markdown files to process
+FILES=""
+echo "Files to be processed:"
+
+# Get files in the language directory
+FILES=$(find "$LANGUAGE_DIR" -name "*.md" | sort)
+for FILE in $FILES; do
+  echo "$FILE"
+done
+
+# Check for a marker file that indicates the structure type
+if [ -f "$LANGUAGE_DIR/.numeric-structure" ]; then
+  STRUCTURE_TYPE="numeric"
+elif [ -f "$LANGUAGE_DIR/.custom-order" ]; then
+  STRUCTURE_TYPE="custom"
+else
+  # Auto-detect structure type
+  if find "$LANGUAGE_DIR" -maxdepth 1 -name "[0-9]*-*" | grep -q .; then
+    STRUCTURE_TYPE="numeric"
+    echo "Using numeric directory-based structure"
+  else
+    STRUCTURE_TYPE="flat"
+    echo "Using flat file structure (all markdown files)"
+  fi
 fi
 
-# List all files to be processed (for debugging)
-echo "Files to be processed:"
-find "../book/$LANGUAGE" -type f -name "*.md" | sort
-
-# Check for multiple directory structures
-# First, look for the chapter-based structure (chapter-01, chapter-02, etc.)
-CHAPTER_DIRS=$(find "../book/$LANGUAGE" -type d -name "chapter-*" 2>/dev/null | sort -V)
-
-# If chapters were found, process them
-if [ -n "$CHAPTER_DIRS" ]; then
-  echo "Using chapter-based directory structure"
+# Process files based on structure type
+if [ "$STRUCTURE_TYPE" = "numeric" ]; then
+  # Find all directories that match the numeric pattern
+  DIRS=$(find "$LANGUAGE_DIR" -maxdepth 1 -type d -name "[0-9]*-*" | sort)
   
-  # Look for title-page.md first if it exists
-  TITLE_PAGE="../book/$LANGUAGE/title-page.md"
-  if [ -f "$TITLE_PAGE" ]; then
-    echo "Adding title page from $TITLE_PAGE"
-    cat "$TITLE_PAGE" >> "$OUTPUT_PATH"
-  fi
-  
-  # Process chapters
-  echo "$CHAPTER_DIRS" | while read -r chapter_dir; do
-    echo "Processing chapter directory: $chapter_dir"
-    
-    # Look for chapter introduction file
-    if [ -f "$chapter_dir/00-introduction.md" ]; then
-      echo "Adding chapter introduction from $chapter_dir/00-introduction.md"
-      cat "$chapter_dir/00-introduction.md" >> "$OUTPUT_PATH"
-      echo -e "\n\n" >> "$OUTPUT_PATH"
-    fi
-    
-    # Process all section files in correct numeric order
-    # Find all numeric prefixed markdown files (excluding introduction) and sort them properly
-    find "$chapter_dir" -maxdepth 1 -type f -name "[0-9]*.md" | grep -v "00-introduction.md" | sort -V | while read -r section_file; do
-      echo "Adding section from $section_file"
-      # Add an explicit section header comment for better visibility in source
-      echo -e "\n\n<!-- Start of section: $(basename "$section_file") -->\n" >> "$OUTPUT_PATH"
-      cat "$section_file" >> "$OUTPUT_PATH"
-      echo -e "\n\n" >> "$OUTPUT_PATH"
-    done
-  done
-else
-  # Alternative structure: numeric directory-based structure (01-chapter-one, 02-chapter-two, etc.)
-  NUM_DIRS=$(find "../book/$LANGUAGE" -maxdepth 1 -type d -name "[0-9]*" | sort -V)
-  
-  if [ -n "$NUM_DIRS" ]; then
-    echo "Using numeric directory-based structure"
-    
-    # Process each numbered directory
-    for dir in $NUM_DIRS; do
-      echo "Processing directory: $dir"
-      
-      # Process all markdown files in this directory
-      find "$dir" -maxdepth 1 -type f -name "*.md" | sort -V | while read -r md_file; do
-        if [ -f "$md_file" ]; then
-          echo "Adding section from $md_file"
-          echo -e "\n\n<!-- Start of section: $(basename "$md_file") -->\n" >> "$OUTPUT_PATH"
-          cat "$md_file" >> "$OUTPUT_PATH"
-          echo -e "\n\n" >> "$OUTPUT_PATH"
-        fi
-      done
-    done
+  if [ -z "$DIRS" ]; then
+    echo "No chapter directories found in $LANGUAGE_DIR"
+    # Fallback to flat structure
+    FILES=$(find "$LANGUAGE_DIR" -maxdepth 1 -name "*.md" | sort)
   else
-    # Fallback to simple file-based structure
-    echo "Using simple file-based structure"
-    
-    # Look for any markdown files directly in the language directory
-    MD_FILES=$(find "../book/$LANGUAGE" -maxdepth 1 -type f -name "*.md" | sort -V)
-    
-    # If no files found at top level, look for files in a 'chapters' directory
-    if [ -z "$MD_FILES" ] && [ -d "../book/$LANGUAGE/chapters" ]; then
-      MD_FILES=$(find "../book/$LANGUAGE/chapters" -type f -name "*.md" | sort -V)
-    fi
-    
-    # Process each file
-    if [ -n "$MD_FILES" ]; then
-      for md_file in $MD_FILES; do
-        echo "Adding content from $md_file"
-        # Add an explicit file header comment for better visibility in source
-        echo -e "\n\n<!-- Start of file: $(basename "$md_file") -->\n" >> "$OUTPUT_PATH"
-        cat "$md_file" >> "$OUTPUT_PATH"
-        echo -e "\n\n" >> "$OUTPUT_PATH"
+    echo "Processing directory: $LANGUAGE_DIR"
+    # Process each directory
+    for DIR in $DIRS; do
+      echo "Processing directory: $DIR"
+      # Get all markdown files in this directory
+      DIR_FILES=$(find "$DIR" -maxdepth 1 -name "*.md" | sort)
+      for FILE in $DIR_FILES; do
+        echo "Adding section from $FILE"
+        # Add section heading with file name
+        echo "" >> "$OUTPUT_PATH"
+        echo "<!-- Start of section: $(basename "$FILE") -->" >> "$OUTPUT_PATH"
+        echo "" >> "$OUTPUT_PATH"
+        # Remove YAML front matter if present and append content
+        sed -n '/^---$/,/^---$/!p' "$FILE" | sed '/./,$!d' >> "$OUTPUT_PATH"
+        echo "" >> "$OUTPUT_PATH"
+        echo "" >> "$OUTPUT_PATH"
       done
-    fi
+    done
   fi
+elif [ "$STRUCTURE_TYPE" = "custom" ]; then
+  # Read custom order from file
+  if [ -f "$LANGUAGE_DIR/.custom-order" ]; then
+    while IFS= read -r FILE; do
+      if [ -f "$LANGUAGE_DIR/$FILE" ]; then
+        echo "Adding section from $LANGUAGE_DIR/$FILE (custom order)"
+        echo "" >> "$OUTPUT_PATH"
+        echo "<!-- Start of section: $FILE -->" >> "$OUTPUT_PATH"
+        echo "" >> "$OUTPUT_PATH"
+        # Remove YAML front matter if present and append content
+        sed -n '/^---$/,/^---$/!p' "$LANGUAGE_DIR/$FILE" | sed '/./,$!d' >> "$OUTPUT_PATH"
+        echo "" >> "$OUTPUT_PATH"
+        echo "" >> "$OUTPUT_PATH"
+      fi
+    done < "$LANGUAGE_DIR/.custom-order"
+  else
+    echo "Custom order specified but no .custom-order file found"
+    exit 1
+  fi
+else
+  # Flat structure: process all markdown files in alphabetical order
+  FILES=$(find "$LANGUAGE_DIR" -maxdepth 1 -name "*.md" | sort)
+  for FILE in $FILES; do
+    echo "Adding section from $FILE"
+    echo "" >> "$OUTPUT_PATH"
+    echo "<!-- Start of section: $(basename "$FILE") -->" >> "$OUTPUT_PATH"
+    echo "" >> "$OUTPUT_PATH"
+    # Remove YAML front matter if present and append content
+    sed -n '/^---$/,/^---$/!p' "$FILE" | sed '/./,$!d' >> "$OUTPUT_PATH"
+    echo "" >> "$OUTPUT_PATH"
+    echo "" >> "$OUTPUT_PATH"
+  done
 fi
 
 # Process appendices if they exist, ensuring numeric sorting

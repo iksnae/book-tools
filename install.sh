@@ -58,7 +58,7 @@ function show_help {
     echo "Usage: book-tools [command] [arguments]"
     echo ""
     echo "Available commands:"
-    echo "  create <name> [language] [--copy-scripts]   Create a new book project"
+    echo "  create BOOKNAME [language] [--copy-scripts]   Create a new book project"
     echo "  build [options]                            Build a book"
     echo "  help                                       Show this help message"
     echo ""

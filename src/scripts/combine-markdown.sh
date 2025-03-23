@@ -49,8 +49,8 @@ cat > "$OUTPUT_PATH" << EOF
 ---
 title: $BOOK_TITLE
 subtitle: $BOOK_SUBTITLE
-author: "$BOOK_AUTHOR"
-publisher: "$PUBLISHER"
+author: $BOOK_AUTHOR
+publisher: $PUBLISHER
 language: "$LANGUAGE"
 toc: true
 EOF

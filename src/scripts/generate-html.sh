@@ -28,26 +28,29 @@ mkdir -p "$(dirname "$OUTPUT_FILE")"
 
 # Check if custom HTML template exists
 HTML_TEMPLATE=""
-if [ -f "templates/html/template.html" ]; then
-  HTML_TEMPLATE="--template=templates/html/template.html"
-  echo "Using custom HTML template: templates/html/template.html"
-elif [ -f "templates/html/$LANGUAGE-template.html" ]; then
-  HTML_TEMPLATE="--template=templates/html/$LANGUAGE-template.html"
-  echo "Using language-specific HTML template: templates/html/$LANGUAGE-template.html"
+if [ -f "../resources/templates/html/template.html" ]; then
+  HTML_TEMPLATE="--template=../resources/templates/html/template.html"
+  echo "Using custom HTML template: ../resources/templates/html/template.html"
+elif [ -f "../resources/templates/html/default.html" ]; then
+  HTML_TEMPLATE="--template=../resources/templates/html/default.html"
+  echo "Using default HTML template: ../resources/templates/html/default.html"
+elif [ -f "../resources/templates/html/$LANGUAGE-template.html" ]; then
+  HTML_TEMPLATE="--template=../resources/templates/html/$LANGUAGE-template.html"
+  echo "Using language-specific HTML template: ../resources/templates/html/$LANGUAGE-template.html"
 fi
 
 # Check for HTML style
 HTML_STYLE=""
-if [ -f "templates/html/style.css" ]; then
-  HTML_STYLE="--css=templates/html/style.css"
-  echo "Using custom HTML style: templates/html/style.css"
-elif [ -f "templates/html/$LANGUAGE-style.css" ]; then
-  HTML_STYLE="--css=templates/html/$LANGUAGE-style.css"
-  echo "Using language-specific HTML style: templates/html/$LANGUAGE-style.css"
+if [ -f "../resources/css/html.css" ]; then
+  HTML_STYLE="--css=../resources/css/html.css"
+  echo "Using custom HTML style: ../resources/css/html.css"
+elif [ -f "../resources/css/$LANGUAGE-html.css" ]; then
+  HTML_STYLE="--css=../resources/css/$LANGUAGE-html.css"
+  echo "Using language-specific HTML style: ../resources/css/$LANGUAGE-html.css"
 else
   # Create a basic style if none exists
-  mkdir -p templates/html
-  cat > templates/html/style.css << EOF
+  mkdir -p ../resources/css
+  cat > ../resources/css/html.css << EOF
 /* Default styles for HTML output */
 body {
   max-width: 800px;
@@ -137,8 +140,8 @@ nav ul {
   }
 }
 EOF
-  HTML_STYLE="--css=templates/html/style.css"
-  echo "Created default HTML style: templates/html/style.css"
+  HTML_STYLE="--css=../resources/css/html.css"
+  echo "Created default HTML style: ../resources/css/html.css"
 fi
 
 # Define HTML metadata

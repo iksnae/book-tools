@@ -29,12 +29,22 @@ fi
 
 # Check if book.yaml contains epub settings
 EPUB_CSS=""
-if [ -f "templates/epub/style.css" ]; then
-  EPUB_CSS="--css=templates/epub/style.css"
-  echo "Using custom EPUB style: templates/epub/style.css"
-elif [ -f "templates/epub/$LANGUAGE-style.css" ]; then
-  EPUB_CSS="--css=templates/epub/$LANGUAGE-style.css"
-  echo "Using language-specific EPUB style: templates/epub/$LANGUAGE-style.css"
+if [ -f "../resources/css/epub.css" ]; then
+  EPUB_CSS="--css=../resources/css/epub.css"
+  echo "Using custom EPUB style: ../resources/css/epub.css"
+elif [ -f "../resources/css/$LANGUAGE-epub.css" ]; then
+  EPUB_CSS="--css=../resources/css/$LANGUAGE-epub.css"
+  echo "Using language-specific EPUB style: ../resources/css/$LANGUAGE-epub.css"
+fi
+
+# Check if a custom EPUB template exists
+EPUB_TEMPLATE=""
+if [ -f "../resources/templates/epub/template.html" ]; then
+  EPUB_TEMPLATE="--template=../resources/templates/epub/template.html"
+  echo "Using custom EPUB template: ../resources/templates/epub/template.html"
+elif [ -f "../resources/templates/epub/$LANGUAGE-template.html" ]; then
+  EPUB_TEMPLATE="--template=../resources/templates/epub/$LANGUAGE-template.html"
+  echo "Using language-specific EPUB template: ../resources/templates/epub/$LANGUAGE-template.html"
 fi
 
 # Set publisher and author from book.yaml if not already defined
@@ -82,6 +92,7 @@ WARNINGS=$(pandoc "$INPUT_FILE" -o "$OUTPUT_FILE" \
   $PANDOC_COMMON_PARAMS \
   $COVER_OPTION \
   $EPUB_CSS \
+  $EPUB_TEMPLATE \
   --epub-chapter-level=1 \
   --highlight-style=tango 2>&1)
 RESULT=$?
@@ -107,6 +118,7 @@ if [ $RESULT -ne 0 ] || [ ! -s "$OUTPUT_FILE" ]; then
   pandoc "${SAFE_INPUT_FILE}.tmp" -o "$OUTPUT_FILE" \
     $PANDOC_COMMON_PARAMS \
     $COVER_OPTION \
+    $EPUB_TEMPLATE \
     --epub-chapter-level=1 || true
   set -e  # Re-enable exit on error
   
@@ -121,6 +133,7 @@ if [ $RESULT -ne 0 ] || [ ! -s "$OUTPUT_FILE" ]; then
     set +e  # Temporarily disable exit on error
     pandoc "${SAFE_INPUT_FILE}.noimg" -o "$OUTPUT_FILE" \
       $PANDOC_COMMON_PARAMS \
+      $EPUB_TEMPLATE \
       --epub-chapter-level=1 || true
     set -e  # Re-enable exit on error
     

@@ -48,7 +48,32 @@ fi
 # 2. Generate PDF (if pandoc is available)
 if command -v pandoc &> /dev/null; then
   echo "📄 Generating PDF..."
-  "$SCRIPTS_DIR/generate-pdf.sh" "$LANGUAGE" "$MARKDOWN_OUTPUT" "$PDF_OUTPUT" "$BOOK_TITLE" "$RESOURCES_DIR"
+  if [ -f "../resources/templates/pdf/template.tex" ]; then
+    echo "Using custom LaTeX template for PDF generation"
+    pandoc "$MARKDOWN_OUTPUT" -o "$PDF_OUTPUT" \
+      --pdf-engine=xelatex \
+      --toc \
+      --metadata title="$BOOK_TITLE" \
+      --metadata author="$AUTHOR" \
+      --metadata publisher="$PUBLISHER" \
+      --metadata=lang:"$LANGUAGE" \
+      --variable=fontsize:"11pt" \
+      --variable=papersize:"letter" \
+      --variable=geometry:"top=1in,right=1in,bottom=1in,left=1in" \
+      --variable=linestretch:"1.5" \
+      --template="../resources/templates/pdf/template.tex" \
+      --variable=documentclass:"book"
+    
+    if [ -f "$PDF_OUTPUT" ]; then
+      PDF_SIZE=$(du -h "$PDF_OUTPUT" | cut -f1)
+      echo "✅ Successfully created PDF with custom template: $PDF_OUTPUT ($PDF_SIZE)"
+    else
+      echo "⚠️ PDF generation with custom template failed, trying with default settings..."
+      pandoc "$MARKDOWN_OUTPUT" -o "$PDF_OUTPUT" --pdf-engine=xelatex --toc
+    fi
+  else
+    "$SCRIPTS_DIR/generate-pdf.sh" "$LANGUAGE" "$MARKDOWN_OUTPUT" "$PDF_OUTPUT" "$BOOK_TITLE" "$RESOURCES_DIR"
+  fi
 else
   echo "⚠️ Pandoc not installed - skipping PDF generation"
 fi

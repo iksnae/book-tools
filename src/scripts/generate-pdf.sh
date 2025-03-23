@@ -26,6 +26,16 @@ if [ ! -f "$SAFE_INPUT_FILE" ]; then
   cp "$INPUT_FILE" "$SAFE_INPUT_FILE"
 fi
 
+# Check for custom LaTeX template
+PDF_TEMPLATE=""
+if [ -f "../resources/templates/pdf/template.tex" ]; then
+  PDF_TEMPLATE="../resources/templates/pdf/template.tex"
+  echo "Using custom LaTeX template: $PDF_TEMPLATE"
+elif [ -f "../resources/templates/pdf/$LANGUAGE-template.tex" ]; then
+  PDF_TEMPLATE="../resources/templates/pdf/$LANGUAGE-template.tex"
+  echo "Using language-specific LaTeX template: $PDF_TEMPLATE"
+fi
+
 # Get PDF-specific settings from book.yaml if available
 PDF_FONT_SIZE="11pt"
 PDF_PAPER_SIZE="letter"
@@ -117,7 +127,7 @@ PANDOC_COMMON_PARAMS="--pdf-engine=xelatex \
   --resource-path=\"$RESOURCE_PATHS\""
 
 # First attempt: Use LaTeX template if available
-if [ -f "$PDF_TEMPLATE" ]; then
+if [ -n "$PDF_TEMPLATE" ]; then
   echo "Using LaTeX template: $PDF_TEMPLATE"
   
   # Run pandoc with the template and capture any warnings

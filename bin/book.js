@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
-const cli = require('../src/cli');
+const { configureCLI } = require('../src/cli');
 
-// Execute the CLI
-cli.run();
+// Configure and run the CLI
+const program = configureCLI();
+program.parse(process.argv);

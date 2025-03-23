@@ -22,6 +22,31 @@ This project provides shell scripts for building books from markdown files using
 
 ### Installation
 
+#### Option 1: CLI Installation (Recommended)
+
+Install the book-tools CLI with a single command:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/yourusername/book-tools/main/install.sh | bash
+```
+
+This will:
+1. Download the book-tools repository to `~/.book-tools`
+2. Create a `book-tools` command in `~/.local/bin`
+3. Make all scripts executable
+
+After installation, you can use book-tools from anywhere:
+
+```bash
+# Create a new book
+book-tools create my-awesome-book
+
+# Build a book
+book-tools build
+```
+
+#### Option 2: Manual Installation
+
 1. Clone this repository:
    ```bash
    git clone https://github.com/yourusername/book-tools.git
@@ -39,19 +64,23 @@ This project provides shell scripts for building books from markdown files using
 To create a new book project with the proper directory structure and sample files:
 
 ```bash
+# Using the CLI
+book-tools create my-awesome-book
+
+# OR, if manually installed
 ./src/scripts/create-book.sh my-awesome-book
 ```
 
 This will create a new directory with the specified name containing all the necessary files and directories to get started. You can also specify a language:
 
 ```bash
-./src/scripts/create-book.sh my-awesome-book es
+book-tools create my-awesome-book es
 ```
 
 For a completely self-contained book project with its own scripts:
 
 ```bash
-./src/scripts/create-book.sh my-awesome-book --copy-scripts
+book-tools create my-awesome-book --copy-scripts
 ```
 
 ### Building a Book
@@ -62,6 +91,10 @@ To build a book in various formats:
 2. Create a `book.yaml` configuration file
 3. Run the build script:
    ```bash
+   # Using the CLI
+   book-tools build
+   
+   # OR, if manually installed
    ./src/scripts/build.sh
    ```
 

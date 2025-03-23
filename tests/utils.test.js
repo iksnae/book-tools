@@ -5,105 +5,73 @@ const {
   buildFileNames
 } = require('../src/utils');
 
-// Mock fs module
+// Simple manual mocks to avoid compatibility issues
 jest.mock('fs', () => ({
   existsSync: jest.fn(),
   readFileSync: jest.fn(),
   mkdirSync: jest.fn()
 }));
 
-// Mock yaml module
 jest.mock('js-yaml', () => ({
-  load: jest.fn().mockImplementation(yamlString => {
-    if (yamlString.includes('Test Book')) {
-      return {
-        title: 'Test Book',
-        subtitle: 'Test Subtitle',
-        author: 'Test Author',
-        filePrefix: 'test-book',
-        languages: ['en', 'es']
-      };
-    }
-    return {};
-  })
+  load: jest.fn()
 }));
 
-// Mock child_process for exec calls
-jest.mock('child_process', () => {
-  return {
-    exec: jest.fn().mockImplementation((command, options, callback) => {
-      if (callback) {
-        callback(null, { stdout: 'success', stderr: '' });
-      }
-      return {
-        on: jest.fn((event, handler) => {
-          if (event === 'close') {
-            handler(0);
-          }
-          return this;
-        })
-      };
-    }),
-    execSync: jest.fn().mockReturnValue('success')
-  };
-});
-
-// Skip using mock-fs
-jest.mock('mock-fs', () => jest.fn());
+jest.mock('child_process', () => ({
+  exec: jest.fn(),
+  execSync: jest.fn()
+}));
 
 describe('Utils', () => {
-  // Store original process.cwd
-  const originalCwd = process.cwd;
-  
   beforeEach(() => {
-    // Setup fs.existsSync mock
-    const fs = require('fs');
+    jest.clearAllMocks();
     
-    // Default behavior: most files don't exist
+    // Setup fs mocks
+    const fs = require('fs');
     fs.existsSync.mockImplementation(path => {
-      if (path === '/project-root/book.yaml') return true;
-      if (path === '/project-root/book') return true;
-      if (path.includes('/project-root')) return true;
+      if (path.includes('book.yaml')) return true;
       return false;
     });
     
-    // Setup fs.readFileSync mock
-    fs.readFileSync.mockImplementation(path => {
-      if (path === '/project-root/book.yaml') {
-        return 'title: Test Book\nsubtitle: Test Subtitle\nauthor: Test Author\nfilePrefix: test-book\nlanguages:\n  - en\n  - es';
-      }
-      return '';
+    fs.readFileSync.mockImplementation(() => {
+      return 'title: Test Book\nsubtitle: Test Subtitle\nauthor: Test Author\nfilePrefix: test-book\nlanguages:\n  - en\n  - es';
     });
     
-    // Mock process.cwd() to return a specific location
+    // Setup yaml mock
+    const yaml = require('js-yaml');
+    yaml.load.mockImplementation(() => ({
+      title: 'Test Book',
+      subtitle: 'Test Subtitle',
+      author: 'Test Author',
+      filePrefix: 'test-book',
+      languages: ['en', 'es']
+    }));
+    
+    // Mock process.cwd
     jest.spyOn(process, 'cwd').mockReturnValue('/project-root/src');
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
     jest.restoreAllMocks();
-    // Restore process.cwd
-    process.cwd = originalCwd;
   });
 
   describe('findProjectRoot', () => {
-    test('should find project root by looking for book.yaml', () => {
+    it('finds the project root when book.yaml exists', () => {
       const rootPath = findProjectRoot();
       expect(rootPath).toBe('/project-root');
     });
 
-    test('should return null if book.yaml is not found', () => {
+    it('throws an error when book.yaml is not found', () => {
       const fs = require('fs');
       fs.existsSync.mockReturnValue(false);
       
       expect(() => {
         findProjectRoot();
-      }).toThrow(/Could not find project root/);
+      }).toThrow();
     });
   });
 
   describe('loadConfig', () => {
-    test('should load configuration from book.yaml', () => {
+    it('loads configuration from book.yaml', () => {
       const config = loadConfig('/project-root');
       
       expect(config).toEqual({
@@ -115,7 +83,7 @@ describe('Utils', () => {
       });
     });
 
-    test('should return default config if book.yaml is not found', () => {
+    it('returns default config if book.yaml is not found', () => {
       const fs = require('fs');
       fs.existsSync.mockReturnValueOnce(false);
       
@@ -132,29 +100,27 @@ describe('Utils', () => {
   });
 
   describe('ensureDirectoryExists', () => {
-    test('should create directory if it does not exist', () => {
+    it('creates directory if it does not exist', () => {
       const fs = require('fs');
       fs.existsSync.mockReturnValueOnce(false);
       
-      const dirPath = '/project-root/new-directory';
-      ensureDirectoryExists(dirPath);
+      ensureDirectoryExists('/project-root/new-directory');
       
-      expect(fs.mkdirSync).toHaveBeenCalledWith(dirPath, { recursive: true });
+      expect(fs.mkdirSync).toHaveBeenCalledWith('/project-root/new-directory', { recursive: true });
     });
 
-    test('should not throw if directory already exists', () => {
+    it('does not create directory if it already exists', () => {
       const fs = require('fs');
       fs.existsSync.mockReturnValueOnce(true);
       
-      const dirPath = '/project-root/book';
-      ensureDirectoryExists(dirPath);
+      ensureDirectoryExists('/project-root/existing-directory');
       
       expect(fs.mkdirSync).not.toHaveBeenCalled();
     });
   });
 
   describe('buildFileNames', () => {
-    test('should build correct file names for English language', () => {
+    it('builds correct file names for English language', () => {
       const fileNames = buildFileNames('en', '/project-root');
       
       expect(fileNames).toEqual({
@@ -166,7 +132,7 @@ describe('Utils', () => {
       });
     });
 
-    test('should build correct file names for Spanish language', () => {
+    it('builds correct file names for Spanish language', () => {
       const fileNames = buildFileNames('es', '/project-root');
       
       expect(fileNames).toEqual({

@@ -1,0 +1,56 @@
+FROM ubuntu:22.04
+
+# Prevent interactive prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    pandoc \
+    texlive-xetex \
+    texlive-fonts-recommended \
+    texlive-fonts-extra \
+    texlive-latex-recommended \
+    texlive-latex-extra \
+    ghostscript \
+    wget \
+    curl \
+    zip \
+    unzip \
+    default-jre \
+    fontconfig \
+    python3-pip \
+    locales \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set up locales
+RUN locale-gen en_US.UTF-8
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US:en
+ENV LC_ALL en_US.UTF-8
+
+# Install Calibre (for MOBI generation)
+RUN wget -nv -O- https://download.calibre-ebook.com/linux-installer.sh | sh /dev/stdin
+
+# Install additional fonts
+RUN apt-get update && apt-get install -y \
+    fonts-noto \
+    fonts-noto-cjk \
+    fonts-liberation \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install additional Python packages
+RUN pip3 install \
+    markdown \
+    pyyaml \
+    beautifulsoup4
+
+# Create working directory
+WORKDIR /book
+
+# Volumes for book data
+VOLUME ["/book"]
+
+# Set entry point to allow running commands directly
+ENTRYPOINT ["/bin/bash", "-c"]
+CMD ["bash"] 

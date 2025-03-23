@@ -55,8 +55,8 @@ fi
 # Add metadata header
 cat > "$OUTPUT_PATH" << EOF
 ---
-title: "$BOOK_TITLE"
-subtitle: "$BOOK_SUBTITLE"
+title: $BOOK_TITLE
+subtitle: $BOOK_SUBTITLE
 author: "$BOOK_AUTHOR"
 publisher: "$PUBLISHER"
 language: "$LANGUAGE"
@@ -132,32 +132,27 @@ if [ -n "$CHAPTER_DIRS" ]; then
   done
 else
   # Alternative structure: numeric directory-based structure (01-chapter-one, 02-chapter-two, etc.)
-  NUM_DIRS=$(find "../book/$LANGUAGE" -type d -name "[0-9]*" 2>/dev/null | sort -V)
+  NUM_DIRS=$(find "../book/$LANGUAGE" -maxdepth 1 -type d -name "[0-9]*" | sort -V)
   
   if [ -n "$NUM_DIRS" ]; then
     echo "Using numeric directory-based structure"
-    echo "Found directories: $NUM_DIRS"
     
-    # Process each numeric directory
+    # Process each numbered directory
     for dir in $NUM_DIRS; do
       echo "Processing directory: $dir"
       
-      # Find all markdown files in this directory
-      SECTION_FILES=$(find "$dir" -type f -name "*.md" | sort -V)
-      
-      if [ -n "$SECTION_FILES" ]; then
-        for section_file in $SECTION_FILES; do
-          echo "Adding section from $section_file"
-          echo -e "\n\n<!-- Start of section: $(basename "$section_file") -->\n" >> "$OUTPUT_PATH"
-          cat "$section_file" >> "$OUTPUT_PATH"
+      # Process all markdown files in this directory
+      find "$dir" -maxdepth 1 -type f -name "*.md" | sort -V | while read -r md_file; do
+        if [ -f "$md_file" ]; then
+          echo "Adding section from $md_file"
+          echo -e "\n\n<!-- Start of section: $(basename "$md_file") -->\n" >> "$OUTPUT_PATH"
+          cat "$md_file" >> "$OUTPUT_PATH"
           echo -e "\n\n" >> "$OUTPUT_PATH"
-        done
-      else
-        echo "No markdown files found in $dir"
-      fi
+        fi
+      done
     done
   else
-    # Alternative structure: simple file-based structure
+    # Fallback to simple file-based structure
     echo "Using simple file-based structure"
     
     # Look for any markdown files directly in the language directory
@@ -169,13 +164,15 @@ else
     fi
     
     # Process each file
-    echo "$MD_FILES" | while read -r md_file; do
-      echo "Adding content from $md_file"
-      # Add an explicit file header comment for better visibility in source
-      echo -e "\n\n<!-- Start of file: $(basename "$md_file") -->\n" >> "$OUTPUT_PATH"
-      cat "$md_file" >> "$OUTPUT_PATH"
-      echo -e "\n\n" >> "$OUTPUT_PATH"
-    done
+    if [ -n "$MD_FILES" ]; then
+      for md_file in $MD_FILES; do
+        echo "Adding content from $md_file"
+        # Add an explicit file header comment for better visibility in source
+        echo -e "\n\n<!-- Start of file: $(basename "$md_file") -->\n" >> "$OUTPUT_PATH"
+        cat "$md_file" >> "$OUTPUT_PATH"
+        echo -e "\n\n" >> "$OUTPUT_PATH"
+      done
+    fi
   fi
 fi
 
@@ -243,4 +240,4 @@ Please check the directory structure and ensure there are valid Markdown files i
 EOF
 
   echo "Created minimal fallback content to prevent build failures."
-fi
+fi 

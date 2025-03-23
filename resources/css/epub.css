@@ -1,0 +1,154 @@
+/* EPUB styling */
+body {
+  margin: 5%;
+  text-align: justify;
+  font-size: 1em;
+  line-height: 1.5;
+  font-family: serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  text-align: left;
+  margin-top: 2em;
+  font-family: sans-serif;
+}
+
+h1 {
+  font-size: 2em;
+  margin-bottom: 1em;
+  text-align: center;
+}
+
+h2 {
+  font-size: 1.5em;
+  margin-bottom: 0.8em;
+}
+
+h3 {
+  font-size: 1.2em;
+  margin-bottom: 0.6em;
+}
+
+p {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  text-indent: 1em;
+}
+
+/* First paragraph after a heading shouldn't be indented */
+h1 + p, h2 + p, h3 + p, h4 + p, h5 + p, h6 + p {
+  text-indent: 0;
+}
+
+ol, ul {
+  margin-left: 1.5em;
+  padding-left: 0.5em;
+}
+
+li {
+  margin-top: 0.25em;
+  margin-bottom: 0.25em;
+}
+
+blockquote {
+  margin-left: 1em;
+  margin-right: 1em;
+  font-style: italic;
+}
+
+pre, code {
+  font-family: monospace;
+  white-space: pre-wrap;
+  margin: 1em 0;
+  font-size: 0.9em;
+  display: block;
+  padding: 0.5em;
+  border: 1px solid #ccc;
+  background-color: #f9f9f9;
+}
+
+a {
+  color: #0000ff;
+  text-decoration: none;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 1em auto;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+}
+
+th, td {
+  border: 1px solid #ccc;
+  padding: 0.5em;
+}
+
+th {
+  background-color: #f0f0f0;
+  font-weight: bold;
+}
+
+/* Cover image */
+img.cover {
+  max-width: 100%;
+  height: auto;
+  margin: 0;
+  padding: 0;
+}
+
+/* Chapter title page */
+.chapter-title {
+  text-align: center;
+  margin-top: 20%;
+  margin-bottom: 20%;
+}
+
+/* Title page */
+.title-page {
+  text-align: center;
+  margin-top: 20%;
+}
+
+.title {
+  font-size: 2.5em;
+  font-weight: bold;
+  margin-bottom: 0.5em;
+}
+
+.subtitle {
+  font-size: 1.5em;
+  margin-top: 0;
+  margin-bottom: 3em;
+}
+
+.author {
+  font-size: 1.2em;
+  margin-top: 3em;
+  font-style: italic;
+}
+
+.publisher {
+  font-size: 1em;
+  margin-top: 8em;
+}
+
+/* Footnotes */
+.footnote {
+  font-size: 0.9em;
+  margin-left: 1em;
+  text-indent: -1em;
+}
+
+/* Responsive font size */
+@media (max-width: 500px) {
+  body {
+    font-size: 0.9em;
+  }
+} 

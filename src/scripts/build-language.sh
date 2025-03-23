@@ -53,40 +53,70 @@ else
   echo "⚠️ Pandoc not installed - skipping PDF generation"
 fi
 
-# 3. Generate EPUB
+# 3. Generate HTML (if pandoc is available)
+if command -v pandoc &> /dev/null; then
+  echo "🌐 Generating HTML..."
+  if [ -f "../resources/templates/html/default.html" ] && [ -f "../resources/css/html.css" ]; then
+    pandoc "$MARKDOWN_OUTPUT" \
+      -o "$HTML_OUTPUT" \
+      --metadata title="$BOOK_TITLE" \
+      --metadata author="$AUTHOR" \
+      --toc \
+      --standalone \
+      --template="../resources/templates/html/default.html" \
+      --css="../resources/css/html.css"
+    echo "✅ Generated HTML using custom template and CSS"
+  else
+    # Fallback to simple HTML generation
+    pandoc "$MARKDOWN_OUTPUT" \
+      -o "$HTML_OUTPUT" \
+      --metadata title="$BOOK_TITLE" \
+      --metadata author="$AUTHOR" \
+      --toc \
+      --standalone
+    echo "✅ Generated HTML with default styling"
+  fi
+else
+  echo "⚠️ Pandoc not installed - skipping HTML generation"
+fi
+
+# 4. Generate EPUB
 if command -v pandoc &> /dev/null; then
   echo "📱 Generating EPUB..."
-  "$SCRIPTS_DIR/generate-epub.sh" "$LANGUAGE" "$MARKDOWN_OUTPUT" "$EPUB_OUTPUT" "$BOOK_TITLE" "$BOOK_SUBTITLE" "$RESOURCES_DIR"
+  if [ -f "../resources/templates/epub/template.html" ] && [ -f "../resources/css/epub.css" ]; then
+    pandoc "$MARKDOWN_OUTPUT" \
+      -o "$EPUB_OUTPUT" \
+      --metadata title="$BOOK_TITLE" \
+      --metadata subtitle="$BOOK_SUBTITLE" \
+      --metadata author="$AUTHOR" \
+      --metadata publisher="$PUBLISHER" \
+      --metadata lang="$LANGUAGE" \
+      --toc \
+      --epub-chapter-level=1 \
+      --css="../resources/css/epub.css" \
+      --template="../resources/templates/epub/template.html"
+    echo "✅ Generated EPUB using custom template and CSS"
+  else
+    # Fallback to simple EPUB generation
+    pandoc "$MARKDOWN_OUTPUT" \
+      -o "$EPUB_OUTPUT" \
+      --metadata title="$BOOK_TITLE" \
+      --metadata subtitle="$BOOK_SUBTITLE" \
+      --metadata author="$AUTHOR" \
+      --toc \
+      --epub-chapter-level=1
+    echo "✅ Generated EPUB with default styling"
+  fi
 else
   echo "⚠️ Pandoc not installed - skipping EPUB generation"
 fi
 
-# 4. Generate MOBI (if kindlegen or ebook-convert is available)
+# 5. Generate MOBI (if kindlegen or ebook-convert is available)
 if command -v kindlegen &> /dev/null || command -v ebook-convert &> /dev/null; then
   echo "📚 Generating MOBI..."
   "$SCRIPTS_DIR/generate-mobi.sh" "$LANGUAGE" "$EPUB_OUTPUT" "$MOBI_OUTPUT" "$BOOK_TITLE"
 else
   echo "⚠️ Neither kindlegen nor Calibre installed - skipping MOBI generation"
-fi
-
-# 5. Generate HTML (if pandoc is available)
-if command -v pandoc &> /dev/null; then
-  echo "🌐 Generating HTML..."
-  pandoc "$MARKDOWN_OUTPUT" \
-    -o "$HTML_OUTPUT" \
-    --metadata title="$BOOK_TITLE" \
-    --metadata author="$AUTHOR" \
-    --toc \
-    --standalone \
-    --template="$RESOURCES_DIR/templates/html.template" 2>/dev/null || \
-  pandoc "$MARKDOWN_OUTPUT" \
-    -o "$HTML_OUTPUT" \
-    --metadata title="$BOOK_TITLE" \
-    --metadata author="$AUTHOR" \
-    --toc \
-    --standalone
-else
-  echo "⚠️ Pandoc not installed - skipping HTML generation"
 fi
 
 # Print summary of generated files
@@ -97,6 +127,11 @@ echo "Generated files:"
 if [ -f "$MARKDOWN_OUTPUT" ]; then
   MARKDOWN_SIZE=$(du -h "$MARKDOWN_OUTPUT" | cut -f1)
   echo " - Markdown: $MARKDOWN_OUTPUT ($MARKDOWN_SIZE)"
+fi
+
+if [ -f "$HTML_OUTPUT" ]; then
+  HTML_SIZE=$(du -h "$HTML_OUTPUT" | cut -f1)
+  echo " - HTML: $HTML_OUTPUT ($HTML_SIZE)"
 fi
 
 if [ -f "$PDF_OUTPUT" ]; then
@@ -114,14 +149,9 @@ if [ -f "$MOBI_OUTPUT" ]; then
   echo " - MOBI: $MOBI_OUTPUT ($MOBI_SIZE)"
 fi
 
-if [ -f "$HTML_OUTPUT" ]; then
-  HTML_SIZE=$(du -h "$HTML_OUTPUT" | cut -f1)
-  echo " - HTML: $HTML_OUTPUT ($HTML_SIZE)"
-fi
-
 # Get word count from markdown
 if [ -f "$MARKDOWN_OUTPUT" ]; then
   WORD_COUNT=$(wc -w < "$MARKDOWN_OUTPUT" | xargs)
   echo ""
   echo "📊 Word count: $WORD_COUNT words"
-fi
+fi 

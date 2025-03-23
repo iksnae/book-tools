@@ -7,9 +7,9 @@ set -e  # Exit on error
 
 # Get arguments
 LANGUAGE=${1:-en}
-CONFIG_FILE=${2:-book.yaml}
+CONFIG_FILE=${2:-../book.yaml}
 SCRIPTS_DIR="$(dirname "$0")"
-BUILD_DIR="build/$LANGUAGE"
+BUILD_DIR="../build/$LANGUAGE"
 
 echo "🔧 Building $LANGUAGE version of the book..."
 
@@ -33,7 +33,7 @@ PDF_OUTPUT="$BUILD_DIR/book.pdf"
 EPUB_OUTPUT="$BUILD_DIR/book.epub"
 MOBI_OUTPUT="$BUILD_DIR/book.mobi"
 HTML_OUTPUT="$BUILD_DIR/book.html"
-RESOURCES_DIR="resources"
+RESOURCES_DIR="../resources"
 
 # 1. Combine markdown files
 echo "📝 Combining markdown files..."

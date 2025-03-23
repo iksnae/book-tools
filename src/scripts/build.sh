@@ -6,7 +6,7 @@
 set -e  # Exit on error
 
 # Default values
-CONFIG_FILE="book.yaml"
+CONFIG_FILE="../book.yaml"  # Look for config in parent directory
 SUPPORTED_LANGUAGES=""
 TARGET_LANGUAGES=""
 SKIP_FORMATS=""
@@ -37,6 +37,7 @@ for arg in "$@"; do
 done
 
 echo "📚 Starting book build process..."
+echo "📄 Using config file: $CONFIG_FILE"
 
 # Check if config file exists
 if [ ! -f "$CONFIG_FILE" ]; then
@@ -50,7 +51,7 @@ if grep -q "^languages:" "$CONFIG_FILE"; then
   SUPPORTED_LANGUAGES=$(grep "^languages:" "$CONFIG_FILE" | cut -d ':' -f 2- | sed 's/^[ \t]*//' | tr -d '[]' | tr ',' ' ')
 else
   # Discover languages from book directory structure
-  SUPPORTED_LANGUAGES=$(find "book" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort)
+  SUPPORTED_LANGUAGES=$(find "../book" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort)
 fi
 
 # Clean existing languages for clarity
@@ -76,8 +77,8 @@ fi
 echo "🔨 Building languages: $LANGUAGES_TO_BUILD"
 
 # Create clean build directory
-mkdir -p build
-echo "🧹 Cleaning build directory..."
+mkdir -p ../build
+echo "🧹 Creating build directory..."
 
 # Prepare build arguments based on what to skip
 BUILD_ARGS=""
@@ -94,8 +95,8 @@ for language in $LANGUAGES_TO_BUILD; do
   echo "🔄 Starting build for language: $language"
   
   # Check if language directory exists
-  if [ ! -d "book/$language" ]; then
-    echo "⚠️ Warning: Directory book/$language does not exist, skipping..."
+  if [ ! -d "../book/$language" ]; then
+    echo "⚠️ Warning: Directory ../book/$language does not exist, skipping..."
     continue
   fi
   

@@ -10,7 +10,7 @@ NC='\033[0m' # No Color
 
 INSTALL_DIR="${HOME}/.book-tools"
 BIN_DIR="${HOME}/.local/bin"
-REPO_URL="https://github.com/yourusername/book-tools.git"
+REPO_URL="https://github.com/iksnae/book-tools.git"
 
 # Print header
 echo -e "${BLUE}=========================================${NC}"
@@ -63,7 +63,7 @@ function show_help {
     echo "  help                                       Show this help message"
     echo ""
     echo "For more information, see the documentation at:"
-    echo "https://github.com/yourusername/book-tools"
+    echo "https://github.com/iksnae/book-tools"
 }
 
 # Check if the command exists
@@ -114,4 +114,4 @@ echo -e "${BLUE}- Create a new book:${NC} book-tools create my-book"
 echo -e "${BLUE}- Build a book:${NC} book-tools build"
 echo -e "${BLUE}- Show help:${NC} book-tools help"
 echo -e ""
-echo -e "${YELLOW}For more information, visit:${NC} https://github.com/yourusername/book-tools" 
+echo -e "${YELLOW}For more information, visit:${NC} https://github.com/iksnae/book-tools" 

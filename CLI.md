@@ -18,4 +18,4 @@ book-tools help
 
 ## Installation
 
-curl -sSL https://raw.githubusercontent.com/yourusername/book-tools/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/iksnae/book-tools/main/install.sh | bash

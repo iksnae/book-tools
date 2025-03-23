@@ -27,7 +27,7 @@ This project provides shell scripts for building books from markdown files using
 Install the book-tools CLI with a single command:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/yourusername/book-tools/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/iksnae/book-tools/main/install.sh | bash
 ```
 
 This will:
@@ -49,7 +49,7 @@ book-tools build
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/yourusername/book-tools.git
+   git clone https://github.com/iksnae/book-tools.git
    cd book-tools
    ```
 

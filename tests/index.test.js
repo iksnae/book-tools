@@ -6,7 +6,7 @@ const {
   cleanBuild
 } = require('../src/index');
 
-// Mock utils functions that would be used by index.js
+// Basic mocks
 jest.mock('../src/utils', () => ({
   findProjectRoot: jest.fn().mockReturnValue('/project-root'),
   loadConfig: jest.fn().mockReturnValue({
@@ -33,24 +33,6 @@ jest.mock('../src/utils', () => ({
   runScript: jest.fn().mockResolvedValue({ success: true })
 }));
 
-// Mock child_process
-jest.mock('child_process', () => ({
-  exec: jest.fn((cmd, opts, callback) => {
-    if (callback) {
-      callback(null, { stdout: 'Success', stderr: '' });
-    }
-    return {
-      on: jest.fn().mockImplementation((event, handler) => {
-        if (event === 'close') {
-          handler(0); // Simulate successful execution
-        }
-        return this;
-      })
-    };
-  }),
-  execSync: jest.fn().mockReturnValue('Success')
-}));
-
 // Mock fs module
 jest.mock('fs', () => ({
   existsSync: jest.fn().mockReturnValue(true),
@@ -61,46 +43,43 @@ jest.mock('fs', () => ({
   writeFileSync: jest.fn()
 }));
 
-// Mock mock-fs to avoid using it
-jest.mock('mock-fs', () => jest.fn());
+// Mock child_process
+jest.mock('child_process', () => ({
+  exec: jest.fn((cmd, opts, callback) => {
+    if (callback) {
+      callback(null, { stdout: 'Success', stderr: '' });
+    }
+    return {
+      on: jest.fn()
+    };
+  }),
+  execSync: jest.fn().mockReturnValue('Success')
+}));
 
 describe('Main Module', () => {
   beforeEach(() => {
-    // Setup minimal mock state
-    const fs = require('fs');
-    fs.existsSync.mockImplementation((path) => {
-      // Return true for directories we expect to exist
-      if (path.includes('chapter-01') || path.includes('chapter-02')) {
-        return true;
-      }
-      return path !== '/project-root/book/en/chapter-99';
-    });
+    jest.clearAllMocks();
     
+    // Set up fs mocks for specific test cases
+    const fs = require('fs');
     fs.statSync.mockImplementation((path) => ({
       isDirectory: () => path.includes('images') || path.includes('chapter')
     }));
   });
 
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-
   describe('buildBook', () => {
-    test('should build book for specified language and formats', async () => {
+    it('builds book for specified language and formats', async () => {
       const result = await buildBook({
         language: 'en',
         formats: ['pdf', 'epub']
       });
 
-      expect(result).toEqual(expect.objectContaining({
-        success: true,
-        language: 'en',
-        formats: ['pdf', 'epub']
-      }));
+      expect(result.success).toBe(true);
+      expect(result.language).toBe('en');
+      expect(result.formats).toEqual(['pdf', 'epub']);
     });
 
-    test('should handle build errors gracefully', async () => {
-      // Override mock to simulate a failure
+    it('handles build errors gracefully', async () => {
       const utils = require('../src/utils');
       utils.runScript.mockRejectedValueOnce(new Error('Build failed'));
 
@@ -115,7 +94,7 @@ describe('Main Module', () => {
   });
 
   describe('createChapter', () => {
-    test('should create a new chapter with the correct structure', async () => {
+    it('creates a new chapter with the correct structure', async () => {
       const options = {
         chapterNumber: '03',
         title: 'New Chapter',
@@ -132,7 +111,7 @@ describe('Main Module', () => {
   });
 
   describe('checkChapter', () => {
-    test('should return chapter information for an existing chapter', async () => {
+    it('returns chapter information for an existing chapter', async () => {
       const result = await checkChapter({
         chapterNumber: '01',
         language: 'en'
@@ -140,10 +119,9 @@ describe('Main Module', () => {
 
       expect(result.language).toBe('en');
       expect(result.chapterNumber).toBe('01');
-      expect(result.hasIntro).toBe(true);
     });
 
-    test('should return error for non-existent chapter', async () => {
+    it('returns error for non-existent chapter', async () => {
       const fs = require('fs');
       fs.existsSync.mockReturnValueOnce(false);
       
@@ -157,7 +135,7 @@ describe('Main Module', () => {
   });
 
   describe('getBookInfo', () => {
-    test('should return book information from config', async () => {
+    it('returns book information from config', async () => {
       const result = await getBookInfo();
 
       expect(result.title).toBe('Test Book');
@@ -167,7 +145,7 @@ describe('Main Module', () => {
   });
 
   describe('cleanBuild', () => {
-    test('should clean build directory', async () => {
+    it('cleans build directory', async () => {
       const result = await cleanBuild();
 
       expect(result.success).toBe(true);

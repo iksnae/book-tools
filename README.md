@@ -118,14 +118,20 @@ This uses the `iksnae/book-builder` Docker image that contains all necessary dep
 
 > **Note for Apple Silicon (M1/M2) users:** The Docker image may require platform emulation. The script will automatically detect this and apply the necessary settings.
 
-#### GitHub Actions Integration
+## GitHub Actions Integration
 
 This project includes GitHub Actions workflows that automate the build and release process:
 
 ### Automated Builds
-The build workflow automatically builds the book on pushes to the `main` branch and pull requests. You can also manually trigger builds from the Actions tab in your GitHub repository.
+The build workflow automatically builds the book on pushes to any branch and pull requests when book content changes. This includes:
 
-The workflow uses the `iksnae/book-builder` Docker image to ensure consistent builds across environments.
+- Building whenever content in the `book/` directory changes
+- Building when templates, styles, or build scripts are modified
+- Generating all formats (PDF, EPUB, HTML, MOBI)
+- Uploading build artifacts for review
+- Creating detailed build summaries
+
+You can also manually trigger builds from the Actions tab in your GitHub repository.
 
 ### Creating Releases
 To create a new release:
@@ -137,6 +143,11 @@ To create a new release:
    
    This will create and push a new git tag, which automatically triggers the release workflow.
 
+   For CI/CD pipelines, you can use the `--force` option to skip confirmation:
+   ```
+   ./tag-release.sh v1.0.0 --force
+   ```
+
 2. Alternatively, manually create and push a tag with a version number:
    ```
    git tag -a v1.0.0 -m "Release v1.0.0"
@@ -147,6 +158,7 @@ To create a new release:
    - Build the book in all formats
    - Create a GitHub release with release notes
    - Attach the built books as release assets
+   - Deploy to GitHub Pages for web reading
 
 You can also manually trigger a release from the Actions tab in your GitHub repository.
 

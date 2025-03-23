@@ -50,50 +50,68 @@ echo -e "${YELLOW}Creating book-tools command...${NC}"
 cat > "${BIN_DIR}/book-tools" << 'EOF'
 #!/bin/bash
 
-TOOLS_DIR="${HOME}/.book-tools"
-
-function show_help {
-    echo "Book Tools CLI"
-    echo ""
-    echo "Usage: book-tools [command] [arguments]"
-    echo ""
-    echo "Available commands:"
-    echo "  create BOOKNAME [language] [--copy-scripts]   Create a new book project"
-    echo "  build [options]                            Build a book"
-    echo "  help                                       Show this help message"
-    echo ""
-    echo "For more information, see the documentation at:"
-    echo "https://github.com/iksnae/book-tools"
-}
-
-# Check if the command exists
-if [ -z "$1" ]; then
-    show_help
-    exit 0
-fi
-
-COMMAND="$1"
+BOOK_TOOLS_DIR="$HOME/.book-tools"
+COMMAND=$1
 shift
 
+# Check for commands
 case "$COMMAND" in
-    create)
-        "${TOOLS_DIR}/src/scripts/create-book.sh" "$@"
-        ;;
-    build)
-        "${TOOLS_DIR}/src/scripts/build.sh" "$@"
-        ;;
-    help)
-        show_help
-        ;;
-    *)
-        echo "Unknown command: $COMMAND"
-        show_help
-        exit 1
-        ;;
+  create)
+    "$BOOK_TOOLS_DIR/src/scripts/create-book.sh" "$@"
+    ;;
+  build)
+    "$BOOK_TOOLS_DIR/src/scripts/build.sh" "$(pwd)" "$@"
+    ;;
+  build-docker)
+    "$BOOK_TOOLS_DIR/docker-build.sh" "$@"
+    ;;
+  setup)
+    "$BOOK_TOOLS_DIR/src/scripts/setup.sh" "$@"
+    ;;
+  help)
+    echo "Usage: book-tools COMMAND [options]"
+    echo ""
+    echo "Commands:"
+    echo "  create    Create a new book project"
+    echo "  build     Build a book in the current directory"
+    echo "  build-docker  Build a book using Docker (recommended)"
+    echo "  setup     Setup the book environment"
+    echo "  help      Show this help message"
+    ;;
+  *)
+    echo "Unknown command: $COMMAND"
+    echo "Use 'book-tools help' for usage information"
+    exit 1
+    ;;
 esac
 EOF
 
 chmod +x "${BIN_DIR}/book-tools"
+
+# Copy docker-build.sh to the installation directory
+cp "$TEMP_DIR/docker-build.sh" "$INSTALL_DIR/"
+chmod +x "$INSTALL_DIR/docker-build.sh"
+
+# Cleanup
+if [ "$CLEANUP" = "true" ]; then
+  echo "🧹 Cleaning up temporary files..."
+  rm -rf "$TEMP_DIR"
+fi
+
+echo ""
+echo "✅ Book Tools installed successfully!"
+echo ""
+echo "📚 To create a new book project:"
+echo "book-tools create my-book-name"
+echo ""
+echo "📖 To build a book:"
+echo "cd my-book-name"
+echo "book-tools build"
+echo ""
+echo "🐳 To build a book using Docker (recommended):"
+echo "cd my-book-name"
+echo "book-tools build-docker"
+echo ""
 
 # Check if BIN_DIR is in PATH, if not, suggest adding it
 if [[ ":$PATH:" != *":${BIN_DIR}:"* ]]; then

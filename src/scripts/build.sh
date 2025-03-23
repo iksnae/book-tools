@@ -55,6 +55,18 @@ if [ ! -f "$CONFIG_FILE" ]; then
   exit 1
 fi
 
+# Check if pandoc is installed, suggest Docker if not
+if ! command -v pandoc &> /dev/null; then
+  echo "❌ Error: pandoc is not installed."
+  echo "📦 For best results, consider using our Docker-based build:"
+  echo ""
+  echo "   $ ./docker-build.sh"
+  echo ""
+  echo "This will use a Docker container with all required dependencies."
+  echo "To install dependencies locally instead, install pandoc and other required tools."
+  exit 1
+fi
+
 # Get supported languages from config or book directory
 if grep -q "^languages:" "$CONFIG_FILE"; then
   # Extract languages from config file

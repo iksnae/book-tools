@@ -15,6 +15,8 @@ This project provides shell scripts for building books from markdown files using
 
 ### Prerequisites
 
+- **Docker** (recommended) - For containerized building with all dependencies included
+- **OR**
 - **Pandoc** - For markdown conversion
 - **LaTeX** - For PDF generation
 - **Kindlegen** (optional) - For MOBI generation
@@ -97,6 +99,20 @@ To build a book in various formats:
    # OR, if manually installed
    ./src/scripts/build.sh
    ```
+
+#### Using Docker (Recommended)
+
+The easiest way to build your book is using Docker, which includes all required dependencies:
+
+```bash
+# Using the CLI
+book-tools build-docker
+
+# OR, if manually installed
+./docker-build.sh
+```
+
+This uses the `iksnae/book-builder` Docker image that contains all necessary dependencies including Pandoc, LaTeX, Kindlegen, and Calibre.
 
 ## Directory Structure
 

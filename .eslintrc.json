@@ -4,7 +4,13 @@
     "es2021": true,
     "jest": true
   },
-  "extends": "eslint:recommended",
+  "extends": [
+    "eslint:recommended",
+    "plugin:jest/recommended"
+  ],
+  "plugins": [
+    "jest"
+  ],
   "parserOptions": {
     "ecmaVersion": 2021
   },
@@ -14,6 +20,11 @@
     "quotes": ["error", "single"],
     "semi": ["error", "always"],
     "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
-    "no-console": "off"
+    "no-console": "off",
+    "jest/expect-expect": "warn",
+    "jest/no-disabled-tests": "warn",
+    "jest/no-focused-tests": "error",
+    "jest/no-identical-title": "error",
+    "jest/valid-expect": "error"
   }
 }

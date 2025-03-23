@@ -22,6 +22,8 @@ This project provides shell scripts for building books from markdown files using
 - **Kindlegen** (optional) - For MOBI generation
 - **Calibre** (optional) - Alternative for MOBI generation
 
+> **Note:** For CI/CD pipelines and GitHub Actions, we recommend using the `iksnae/book-builder` Docker image which contains all required dependencies.
+
 ### Installation
 
 #### Option 1: CLI Installation (Recommended)
@@ -113,6 +115,19 @@ book-tools build-docker
 ```
 
 This uses the `iksnae/book-builder` Docker image that contains all necessary dependencies including Pandoc, LaTeX, Kindlegen, and Calibre.
+
+> **Note for Apple Silicon (M1/M2) users:** The Docker image may require platform emulation. The script will automatically detect this and apply the necessary settings.
+
+#### GitHub Actions Integration
+
+This project includes a GitHub Actions workflow that automatically builds your book whenever changes are pushed. To use it:
+
+1. Push your book project to GitHub
+2. The workflow will automatically run on each push to the `main` branch
+3. You can also manually trigger builds with specific options via the Actions tab
+4. Built files are available as workflow artifacts
+
+The GitHub Actions workflow uses the same `iksnae/book-builder` Docker image, ensuring consistent builds across all environments.
 
 ## Directory Structure
 

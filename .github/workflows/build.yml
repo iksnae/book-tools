@@ -1,0 +1,52 @@
+name: Build Book
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      language:
+        description: 'Language to build (leave empty for all)'
+        required: false
+        default: ''
+      skip_formats:
+        description: 'Formats to skip (comma-separated: pdf,epub,html,mobi)'
+        required: false
+        default: ''
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: iksnae/book-builder:latest
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        
+      - name: Build book
+        run: |
+          # Prepare build arguments
+          BUILD_ARGS=""
+          
+          # Add language filter if specified
+          if [ -n "${{ github.event.inputs.language }}" ]; then
+            BUILD_ARGS="$BUILD_ARGS --languages=${{ github.event.inputs.language }}"
+          fi
+          
+          # Add skip formats if specified
+          if [ -n "${{ github.event.inputs.skip_formats }}" ]; then
+            BUILD_ARGS="$BUILD_ARGS --skip=${{ github.event.inputs.skip_formats }}"
+          fi
+          
+          # Run the build
+          echo "🔨 Building book with args: $BUILD_ARGS"
+          /book/src/scripts/build.sh /github/workspace $BUILD_ARGS
+            
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: book-outputs
+          path: build/ 

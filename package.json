@@ -1,0 +1,47 @@
+{
+  "name": "book-tools",
+  "version": "0.1.0",
+  "description": "A CLI and utility package for building books in multiple formats from markdown sources",
+  "main": "src/index.js",
+  "bin": {
+    "book": "./bin/book.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iksnae/book-tools.git"
+  },
+  "keywords": [
+    "book",
+    "ebook",
+    "markdown",
+    "pdf",
+    "epub",
+    "mobi",
+    "html",
+    "cli"
+  ],
+  "author": "iksnae",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/iksnae/book-tools/issues"
+  },
+  "homepage": "https://github.com/iksnae/book-tools#readme",
+  "dependencies": {
+    "commander": "^10.0.0",
+    "inquirer": "^8.2.5",
+    "chalk": "^4.1.2",
+    "ora": "^5.4.1",
+    "yaml": "^2.2.1",
+    "child_process": "^1.0.2",
+    "fs-extra": "^11.1.1"
+  },
+  "devDependencies": {
+    "jest": "^29.5.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

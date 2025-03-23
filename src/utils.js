@@ -1,134 +1,120 @@
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
-const YAML = require('yaml');
+const { exec } = require('child_process');
+const yaml = require('yaml');
 
 /**
- * Find the project root (where book.yaml is located)
- * @returns {string} Path to the project root
+ * Find the project root directory by looking for book.yaml
+ * 
+ * @returns {string} - Path to the project root
+ * @throws {Error} - If project root could not be found
  */
 function findProjectRoot() {
-  // Start from the current directory
   let currentDir = process.cwd();
+  const root = path.parse(currentDir).root;
   
-  // Keep going up until we find book.yaml or hit the root
-  while (currentDir !== '/') {
+  while (currentDir !== root) {
     if (fs.existsSync(path.join(currentDir, 'book.yaml'))) {
       return currentDir;
     }
+    
     currentDir = path.dirname(currentDir);
   }
   
-  // If we reach here, we didn't find the project root
-  throw new Error('Could not find project root (book.yaml file). Make sure you\'re running this command within a book project.');
+  throw new Error('Could not find project root (book.yaml not found in parent directories)');
 }
 
 /**
- * Run a command in the project root
- * @param {string} command - The command to run
- * @param {boolean} silent - Whether to suppress output
- * @returns {string|null} Command output if silent is true, empty string otherwise
+ * Load book configuration from book.yaml
+ * 
+ * @param {string} projectRoot - Path to the project root
+ * @returns {Object} - Book configuration
  */
-function runCommand(command, silent = false) {
-  const projectRoot = findProjectRoot();
-  
-  try {
-    const output = execSync(command, { 
-      cwd: projectRoot,
-      stdio: silent ? 'pipe' : 'inherit'
-    });
-    
-    return silent ? output.toString() : '';
-  } catch (error) {
-    if (silent) {
-      return null;
-    } else {
-      throw new Error(`Error executing command: ${command}\n${error.toString()}`);
-    }
-  }
-}
-
-/**
- * Load the book.yaml config
- * @returns {Object} Parsed configuration
- */
-function loadConfig() {
-  const projectRoot = findProjectRoot();
+function loadConfig(projectRoot) {
   const configPath = path.join(projectRoot, 'book.yaml');
   
-  try {
-    if (fs.existsSync(configPath)) {
-      const yamlContent = fs.readFileSync(configPath, 'utf8');
-      return YAML.parse(yamlContent);
-    } else {
-      console.warn('Warning: book.yaml not found, using default configuration.');
-      return {
-        title: "My Book",
-        subtitle: "A Book Built with the Template System",
-        author: "Author Name",
-        file_prefix: "my-book",
-        languages: ["en"]
-      };
+  if (fs.existsSync(configPath)) {
+    try {
+      const configContent = fs.readFileSync(configPath, 'utf-8');
+      return yaml.parse(configContent);
+    } catch (error) {
+      console.error(`Error reading config: ${error.message}`);
     }
-  } catch (error) {
-    throw new Error(`Error parsing book.yaml: ${error.message}`);
   }
+  
+  // Return default configuration
+  return {
+    title: 'Untitled Book',
+    subtitle: '',
+    author: 'Unknown Author',
+    filePrefix: 'book',
+    languages: ['en']
+  };
 }
 
 /**
- * Check if a directory exists, create it if it doesn't
- * @param {string} dirPath - Path to directory
- * @returns {boolean} True if directory exists or was created
+ * Ensure a directory exists, creating it if necessary
+ * 
+ * @param {string} dirPath - Path to the directory
  */
 function ensureDirectoryExists(dirPath) {
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true });
   }
-  return true;
 }
 
 /**
- * Get the language codes configured in the project
- * @returns {string[]} Array of language codes
- */
-function getLanguages() {
-  const config = loadConfig();
-  return config.languages || ['en'];
-}
-
-/**
- * Build file paths for a specific language
+ * Build file names for a book in a specific language
+ * 
  * @param {string} language - Language code
- * @returns {Object} Object with file paths
+ * @param {string} projectRoot - Path to the project root
+ * @returns {Object} - Object with file paths for input and outputs
  */
-function buildFileNames(language) {
-  const config = loadConfig();
-  const filePrefix = config.file_prefix || 'book';
+function buildFileNames(language, projectRoot) {
+  const config = loadConfig(projectRoot);
+  const filePrefix = config.filePrefix || 'book';
   
-  if (language === 'en') {
-    return {
-      pdf: `${filePrefix}.pdf`,
-      epub: `${filePrefix}.epub`,
-      mobi: `${filePrefix}.mobi`,
-      html: `${filePrefix}.html`,
-      markdown: `${filePrefix}.md`
-    };
-  } else {
-    return {
-      pdf: `${filePrefix}-${language}.pdf`,
-      epub: `${filePrefix}-${language}.epub`,
-      mobi: `${filePrefix}-${language}.mobi`,
-      html: `${filePrefix}-${language}.html`,
-      markdown: `${filePrefix}-${language}.md`
-    };
-  }
+  const buildDir = path.join(projectRoot, 'build', language);
+  
+  return {
+    input: path.join(buildDir, 'book.md'),
+    pdf: path.join(buildDir, `${filePrefix}.pdf`),
+    epub: path.join(buildDir, `${filePrefix}.epub`),
+    mobi: path.join(buildDir, `${filePrefix}.mobi`),
+    html: path.join(buildDir, `${filePrefix}.html`)
+  };
+}
+
+/**
+ * Run a script with the provided arguments
+ * 
+ * @param {string} scriptPath - Path to the script
+ * @param {string[]} args - Array of arguments
+ * @returns {Promise<Object>} - Result of the script execution
+ */
+function runScript(scriptPath, args = []) {
+  return new Promise((resolve, reject) => {
+    const command = `"${scriptPath}" ${args.join(' ')}`;
+    
+    exec(command, (error, stdout, stderr) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      
+      resolve({
+        success: true,
+        stdout,
+        stderr
+      });
+    });
+  });
 }
 
 module.exports = {
   findProjectRoot,
-  runCommand,
   loadConfig,
   ensureDirectoryExists,
-  getLanguages,
-  buildFileNames
+  buildFileNames,
+  runScript
 };

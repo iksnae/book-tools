@@ -5,7 +5,92 @@
   <meta name="generator" content="pandoc" />
   <title>$pagetitle$</title>
   <style>
-    $styles.html()$
+    /* Basic EPUB styling */
+    html {
+      font-size: 100%;
+      line-height: 1.5;
+    }
+    body {
+      margin: 5%;
+      text-align: justify;
+      font-family: serif;
+      font-size: medium;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      text-align: left;
+      font-weight: bold;
+      margin-top: 1em;
+      margin-bottom: 0.5em;
+    }
+    h1 {
+      font-size: 1.5em;
+    }
+    h2 {
+      font-size: 1.3em;
+    }
+    h3 {
+      font-size: 1.2em;
+    }
+    p {
+      margin-top: 0.5em;
+      margin-bottom: 0.5em;
+      text-indent: 1em;
+    }
+    .titlepage p {
+      text-indent: 0;
+    }
+    a {
+      text-decoration: none;
+      color: #0000ff;
+    }
+    img {
+      max-width: 100%;
+      height: auto;
+    }
+    .titlepage {
+      text-align: center;
+      padding: 20% 0;
+    }
+    .titlepage h1 {
+      text-align: center;
+    }
+    .titlepage h2 {
+      text-align: center;
+      font-weight: normal;
+    }
+    .titlepage .author, .titlepage .date, .titlepage .publisher {
+      text-align: center;
+      font-style: italic;
+      font-weight: normal;
+    }
+    .footnotes {
+      font-size: 0.9em;
+      margin-top: 2em;
+    }
+    .footnotes hr {
+      width: 30%;
+      margin-left: 0;
+    }
+    blockquote {
+      margin: 1em 2em;
+      font-style: italic;
+    }
+    pre, code {
+      font-family: monospace;
+      font-size: 0.9em;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 1em 0;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 0.5em;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
   </style>
 $for(css)$
   <link rel="stylesheet" type="text/css" href="$css$" />

@@ -5,48 +5,56 @@
 
 set -e  # Exit on error
 
-# Default to prompting for version if not provided
-VERSION=${1:-""}
+# Get version from argument or prompt user
+if [ $# -eq 0 ]; then
+    echo "Enter version tag (e.g., v1.0.0):"
+    read VERSION
+else
+    VERSION="$1"
+fi
 
-if [ -z "$VERSION" ]; then
-  echo "Enter release version (e.g. v1.0.0):"
-  read VERSION
+# Check for force flag
+FORCE=false
+if [ "$2" == "--force" ] || [ "$1" == "--force" ]; then
+    FORCE=true
+    if [ "$1" == "--force" ]; then
+        VERSION="$2"
+    fi
 fi
 
 # Validate version format
 if ! [[ $VERSION =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  echo "❌ Invalid version format: $VERSION"
-  echo "Version must be in format v1.0.0"
-  exit 1
+    echo "❌ Invalid version format. Please use the format v1.0.0"
+    exit 1
 fi
 
 # Check if tag already exists
 if git rev-parse "$VERSION" >/dev/null 2>&1; then
-  echo "❌ Tag $VERSION already exists!"
-  exit 1
+    echo "❌ Tag $VERSION already exists!"
+    exit 1
 fi
 
 # Get current branch
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
-echo "Current branch: $BRANCH"
 
-# Confirm with user
-echo "About to create tag $VERSION on branch $BRANCH"
-echo "Type 'yes' to confirm:"
-read CONFIRM
-
-if [ "$CONFIRM" != "yes" ]; then
-  echo "❌ Release creation cancelled"
-  exit 1
+# Confirm action
+if [ "$FORCE" != "true" ]; then
+    echo "Current branch: $BRANCH"
+    echo "About to create tag $VERSION on branch $BRANCH"
+    echo "Type 'yes' to confirm:"
+    read CONFIRMATION
+    if [ "$CONFIRMATION" != "yes" ]; then
+        echo "❌ Release creation cancelled"
+        exit 1
+    fi
 fi
 
 # Create and push tag
-echo "Creating tag $VERSION..."
+echo "🏷️ Creating tag $VERSION..."
 git tag -a "$VERSION" -m "Release $VERSION"
-
-echo "Pushing tag to origin..."
+echo "📤 Pushing tag to origin..."
 git push origin "$VERSION"
-
-echo "✅ Release $VERSION tagged and pushed to GitHub!"
-echo "The release workflow should start automatically."
-echo "You can check the status in GitHub Actions." 
+echo "✅ Successfully created and pushed tag $VERSION!"
+echo ""
+echo "The release workflow should now be running on GitHub."
+echo "Check the Actions tab at https://github.com/$(git config --get remote.origin.url | sed -E 's/.*github.com[:\/](.*)(\.git)?/\1/')/actions" 

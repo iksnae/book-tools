@@ -2,6 +2,8 @@
 
 A comprehensive CLI and utility package for building books in multiple formats from markdown sources. This package extracts the book-building tools from the [book-template](https://github.com/iksnae/book-template) project.
 
+![Node.js Tests](https://github.com/iksnae/book-tools/workflows/Node.js%20Tests/badge.svg)
+
 ## Features
 
 - Build books from Markdown source files
@@ -96,6 +98,47 @@ languages:
   - en
   - es
 ```
+
+## Development
+
+### Requirements
+
+- Node.js (v14 or higher)
+- Pandoc (for format conversions)
+- LaTeX (for PDF generation)
+- Kindlegen or Calibre (for MOBI generation)
+
+### Testing
+
+The project uses Jest for testing. Test files are located in the `tests` directory.
+
+```bash
+# Run all tests
+npm test
+
+# Run tests with coverage report
+npm run test:coverage
+
+# Run tests in watch mode
+npm run test:watch
+```
+
+### GitHub Actions
+
+This project is configured with GitHub Actions for continuous integration:
+
+- Runs tests on multiple Node.js versions (16.x, 18.x, 20.x)
+- Lints code with ESLint
+- Generates test coverage reports
+- Uploads coverage to Codecov
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License
 

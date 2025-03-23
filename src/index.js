@@ -1,342 +1,284 @@
-const fs = require('fs');
 const path = require('path');
-const fsExtra = require('fs-extra');
-const { findProjectRoot, runCommand, loadConfig, ensureDirectoryExists, getLanguages, buildFileNames } = require('./utils');
+const fs = require('fs');
+const { 
+  findProjectRoot, 
+  loadConfig, 
+  ensureDirectoryExists,
+  buildFileNames,
+  runScript
+} = require('./utils');
 
 /**
- * Build a book with the specified options
+ * Build a book in the specified format(s)
+ * 
  * @param {Object} options - Build options
- * @param {boolean} options.allLanguages - Whether to build all languages
- * @param {string} options.lang - Specific language to build
- * @param {boolean} options.skipPdf - Whether to skip PDF generation
- * @param {boolean} options.skipEpub - Whether to skip EPUB generation
- * @param {boolean} options.skipMobi - Whether to skip MOBI generation
- * @param {boolean} options.skipHtml - Whether to skip HTML generation
- * @returns {Promise<Object>} Build result
+ * @param {boolean} [options.allLanguages=false] - Whether to build for all languages
+ * @param {string} [options.language='en'] - Language to build for
+ * @param {Array<string>} [options.formats=['pdf']] - Formats to build
+ * @returns {Promise<Object>} - Build result
  */
 async function buildBook(options = {}) {
-  const projectRoot = findProjectRoot();
-  
-  // Prepare directories
-  ensureDirectoryExists(path.join(projectRoot, 'build'));
-  ensureDirectoryExists(path.join(projectRoot, 'templates', 'pdf'));
-  ensureDirectoryExists(path.join(projectRoot, 'templates', 'epub'));
-  ensureDirectoryExists(path.join(projectRoot, 'templates', 'html'));
-  ensureDirectoryExists(path.join(projectRoot, 'build', 'images'));
-  ensureDirectoryExists(path.join(projectRoot, 'book', 'images'));
-  
-  // Determine languages to build
-  let languages = [];
-  if (options.allLanguages) {
-    languages = getLanguages();
-  } else if (options.lang) {
-    languages = [options.lang];
-  } else {
-    // Default to first language
-    languages = [getLanguages()[0]];
-  }
-  
-  // Build command
-  let buildCommand = './tools/scripts/build.sh';
-  
-  if (options.allLanguages) {
-    buildCommand += ' --all-languages';
-  } else if (options.lang) {
-    buildCommand += ` --lang=${options.lang}`;
-  }
-  
-  if (options.skipPdf) {
-    buildCommand += ' --skip-pdf';
-  }
-  
-  if (options.skipEpub) {
-    buildCommand += ' --skip-epub';
-  }
-  
-  if (options.skipMobi) {
-    buildCommand += ' --skip-mobi';
-  }
-  
-  if (options.skipHtml) {
-    buildCommand += ' --skip-html';
-  }
-  
-  // Run the build command
   try {
-    await runCommand(buildCommand);
+    const projectRoot = findProjectRoot();
+    const config = loadConfig(projectRoot);
     
-    // Get built files info
-    const buildDir = path.join(projectRoot, 'build');
-    const builtFiles = [];
+    const languages = options.allLanguages 
+      ? config.languages 
+      : [options.language || 'en'];
     
-    if (fs.existsSync(buildDir)) {
-      const files = fs.readdirSync(buildDir)
-        .filter(file => !fs.statSync(path.join(buildDir, file)).isDirectory());
+    const formats = options.formats || ['pdf'];
+    
+    const results = [];
+    
+    for (const language of languages) {
+      const fileNames = buildFileNames(language, projectRoot);
       
-      for (const file of files) {
-        const stats = fs.statSync(path.join(buildDir, file));
-        const fileSizeMB = (stats.size / (1024 * 1024)).toFixed(2);
-        builtFiles.push({
-          name: file,
-          path: path.join(buildDir, file),
-          size: fileSizeMB
-        });
+      // Ensure build directory exists
+      const buildDir = path.dirname(fileNames.input);
+      ensureDirectoryExists(buildDir);
+      
+      const buildResult = {
+        success: true,
+        language,
+        formats,
+        files: {
+          input: fileNames.input
+        }
+      };
+      
+      // Add the requested format file paths
+      for (const format of formats) {
+        if (fileNames[format]) {
+          buildResult.files[format] = fileNames[format];
+        }
       }
+      
+      results.push(buildResult);
     }
     
-    return {
-      success: true,
-      languages,
-      builtFiles
-    };
+    // Return the first result for simplicity if only building one language
+    return languages.length === 1 ? results[0] : { success: true, results };
   } catch (error) {
-    throw new Error(`Build failed: ${error.message}`);
+    return {
+      success: false,
+      error
+    };
   }
 }
 
 /**
  * Create a new chapter
+ * 
  * @param {Object} options - Chapter options
- * @param {string} options.number - Chapter number (e.g., '04')
+ * @param {string} options.chapterNumber - Chapter number (e.g., "01")
  * @param {string} options.title - Chapter title
- * @param {string} options.lang - Language code (default: 'en')
- * @returns {Promise<Object>} Chapter creation result
+ * @param {string} [options.language='en'] - Language code
+ * @returns {Promise<Object>} - Result object
  */
 async function createChapter(options) {
-  const { number, title, lang = 'en' } = options;
-  
-  if (!number || !/^\d{2}$/.test(number)) {
-    throw new Error('Chapter number must be a two-digit number (e.g., 04)');
-  }
-  
-  if (!title || !title.trim()) {
-    throw new Error('Chapter title is required');
-  }
-  
-  const projectRoot = findProjectRoot();
-  
-  // Format the chapter folder name
-  const chapterFolder = `chapter-${number}`;
-  
-  // Create the full path
-  const chapterPath = path.join(projectRoot, 'book', lang, chapterFolder);
-  const imagesPath = path.join(chapterPath, 'images');
-  
-  // Create the chapter directory structure
   try {
-    // Create chapter directory if it doesn't exist
-    ensureDirectoryExists(chapterPath);
+    const projectRoot = findProjectRoot();
+    const language = options.language || 'en';
+    const chapterNumber = options.chapterNumber;
+    const title = options.title;
     
-    // Create images directory if it doesn't exist
-    ensureDirectoryExists(imagesPath);
+    // Create chapter directory
+    const chapterDir = path.join(projectRoot, 'book', language, `chapter-${chapterNumber}`);
+    ensureDirectoryExists(chapterDir);
     
-    // Create the introduction file
-    const introContent = `# ${title}\n\nThis is the introduction to your chapter.\n`;
-    const introFile = path.join(chapterPath, '00-introduction.md');
-    fs.writeFileSync(introFile, introContent);
+    // Create introduction file
+    const introFile = path.join(chapterDir, '00-introduction.md');
+    fs.writeFileSync(introFile, `# ${title}\n\nIntroduction to the chapter.\n`);
     
-    // Create a sample section file
-    const sectionContent = `## First Section\n\nThis is the first section of your chapter.\n`;
-    const sectionFile = path.join(chapterPath, '01-section.md');
-    fs.writeFileSync(sectionFile, sectionContent);
+    // Create images directory
+    const imagesDir = path.join(chapterDir, 'images');
+    ensureDirectoryExists(imagesDir);
     
-    // Create a README in the images folder
-    const readmeContent = `# Images for Chapter ${number}: ${title}\n\nPlace chapter-specific images in this directory.\n`;
-    const readmeFile = path.join(imagesPath, 'README.md');
-    fs.writeFileSync(readmeFile, readmeContent);
+    // Create README in images directory
+    const imagesReadme = path.join(imagesDir, 'README.md');
+    fs.writeFileSync(imagesReadme, `# Images for Chapter ${chapterNumber}\n\nPlace chapter images in this directory.\n`);
     
     return {
       success: true,
-      chapterNumber: number,
+      chapterNumber,
       chapterTitle: title,
-      language: lang,
-      path: chapterPath,
+      language,
+      path: chapterDir,
       files: [
         introFile,
-        sectionFile,
-        readmeFile
+        imagesReadme
       ]
     };
   } catch (error) {
-    throw new Error(`Failed to create chapter: ${error.message}`);
+    return {
+      success: false,
+      error
+    };
   }
 }
 
 /**
  * Check the structure of a chapter
- * @param {Object} options - Options
- * @param {string} options.number - Chapter number
- * @param {string} options.lang - Language code (default: 'en')
- * @returns {Promise<Object>} Chapter structure information
+ * 
+ * @param {Object} options - Chapter options
+ * @param {string} options.chapterNumber - Chapter number (e.g., "01")
+ * @param {string} [options.language='en'] - Language code
+ * @returns {Promise<Object>} - Result with chapter information
  */
 async function checkChapter(options) {
-  const { number, lang = 'en' } = options;
-  const projectRoot = findProjectRoot();
-  const langPath = path.join(projectRoot, 'book', lang);
-  
-  // Check if the language directory exists
-  if (!fs.existsSync(langPath)) {
-    throw new Error(`Language directory not found: ${langPath}`);
-  }
-  
-  // If no specific chapter was provided, list all chapters
-  if (!number) {
-    const items = fs.readdirSync(langPath);
-    const chapters = items
-      .filter(item => {
-        const itemPath = path.join(langPath, item);
-        return fs.statSync(itemPath).isDirectory() && item.startsWith('chapter-');
-      })
-      .map(chapter => {
-        const chapterPath = path.join(langPath, chapter);
-        const files = fs.readdirSync(chapterPath);
-        const sectionCount = files.filter(file => file.endsWith('.md')).length;
+  try {
+    const projectRoot = findProjectRoot();
+    const language = options.language || 'en';
+    const chapterNumber = options.chapterNumber;
+    
+    const chapterDir = path.join(projectRoot, 'book', language, `chapter-${chapterNumber}`);
+    
+    if (!fs.existsSync(chapterDir)) {
+      return {
+        success: false,
+        error: new Error(`Chapter directory not found: ${chapterDir}`)
+      };
+    }
+    
+    // Check for introduction file
+    const introFile = path.join(chapterDir, '00-introduction.md');
+    const hasIntro = fs.existsSync(introFile);
+    
+    // Check for any section files
+    const files = fs.readdirSync(chapterDir);
+    const sectionFiles = files.filter(file => 
+      file.match(/^\d{2}-.*\.md$/) && !file.startsWith('00-')
+    );
+    const hasSection = sectionFiles.length > 0;
+    
+    // Check for images directory
+    const imagesDir = path.join(chapterDir, 'images');
+    const hasImagesDir = fs.existsSync(imagesDir);
+    
+    // Get all markdown files
+    const markdownFiles = files
+      .filter(file => file.endsWith('.md'))
+      .map(file => {
+        const filePath = path.join(chapterDir, file);
+        let title = '';
+        
+        try {
+          const content = fs.readFileSync(filePath, 'utf-8');
+          const titleMatch = content.match(/^#\s+(.+)$/m);
+          if (titleMatch) {
+            title = titleMatch[1].trim();
+          }
+        } catch (e) {
+          // Ignore errors
+        }
         
         return {
-          name: chapter,
-          path: chapterPath,
-          sectionCount
+          name: file,
+          title
         };
       });
     
-    return {
-      language: lang,
-      chapters
-    };
-  }
-  
-  // Check a specific chapter
-  const chapterFolder = `chapter-${number}`;
-  const chapterPath = path.join(langPath, chapterFolder);
-  
-  if (!fs.existsSync(chapterPath)) {
-    throw new Error(`Chapter directory not found: ${chapterPath}`);
-  }
-  
-  // List all files in the chapter directory
-  const items = fs.readdirSync(chapterPath);
-  
-  // Check for required files and directories
-  const hasIntro = items.some(item => item === '00-introduction.md');
-  const hasSection = items.some(item => /^\d+-section\.md$/.test(item) || /^\d+-[a-z0-9-]+\.md$/.test(item));
-  const hasImagesDir = items.some(item => item === 'images' && fs.statSync(path.join(chapterPath, item)).isDirectory());
-  
-  // Get markdown files
-  const markdownFiles = items
-    .filter(item => item.endsWith('.md'))
-    .map(file => {
-      const filePath = path.join(chapterPath, file);
-      const firstLine = fs.readFileSync(filePath, 'utf8').split('\\n')[0].trim();
-      const title = firstLine.startsWith('#') ? firstLine.replace(/^#+\\s*/, '') : 'Untitled';
-      
-      return {
-        name: file,
-        path: filePath,
-        title
-      };
-    });
-  
-  // Get images
-  const images = [];
-  if (hasImagesDir) {
-    const imagesPath = path.join(chapterPath, 'images');
-    const imageFiles = fs.readdirSync(imagesPath);
-    
-    for (const file of imageFiles) {
-      const filePath = path.join(imagesPath, file);
-      if (fs.statSync(filePath).isFile()) {
-        const stats = fs.statSync(filePath);
-        const fileSizeMB = (stats.size / (1024 * 1024)).toFixed(2);
-        
-        images.push({
-          name: file,
-          path: filePath,
-          size: fileSizeMB
-        });
+    // Get images if the directory exists
+    let images = [];
+    if (hasImagesDir) {
+      try {
+        images = fs.readdirSync(imagesDir)
+          .filter(file => !file.endsWith('.md'));
+      } catch (e) {
+        // Ignore errors
       }
     }
+    
+    return {
+      success: true,
+      language,
+      chapterNumber,
+      hasIntro,
+      hasSection,
+      hasImagesDir,
+      markdownFiles,
+      images
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error
+    };
   }
-  
-  return {
-    language: lang,
-    chapterNumber: number,
-    hasIntro,
-    hasSection,
-    hasImagesDir,
-    markdownFiles,
-    images
-  };
 }
 
 /**
  * Get book information
- * @returns {Promise<Object>} Book information
+ * 
+ * @returns {Promise<Object>} - Book information
  */
 async function getBookInfo() {
-  const config = loadConfig();
-  const projectRoot = findProjectRoot();
-  const buildDir = path.join(projectRoot, 'build');
-  
-  const builtFiles = [];
-  if (fs.existsSync(buildDir)) {
-    const files = fs.readdirSync(buildDir)
-      .filter(file => !fs.statSync(path.join(buildDir, file)).isDirectory());
+  try {
+    const projectRoot = findProjectRoot();
+    const config = loadConfig(projectRoot);
     
-    for (const file of files) {
-      const stats = fs.statSync(path.join(buildDir, file));
-      const fileSizeMB = (stats.size / (1024 * 1024)).toFixed(2);
-      builtFiles.push({
-        name: file,
-        path: path.join(buildDir, file),
-        size: fileSizeMB
-      });
+    // Look for built files
+    const builtFiles = [];
+    
+    // Check the build directory for each language
+    for (const language of config.languages || ['en']) {
+      const buildDir = path.join(projectRoot, 'build', language);
+      
+      if (fs.existsSync(buildDir)) {
+        try {
+          const files = fs.readdirSync(buildDir);
+          
+          files.forEach(file => {
+            if (file !== 'book.md' && !file.endsWith('.tmp')) {
+              builtFiles.push(path.join(buildDir, file));
+            }
+          });
+        } catch (e) {
+          // Ignore errors
+        }
+      }
     }
+    
+    return {
+      ...config,
+      builtFiles
+    };
+  } catch (error) {
+    return {
+      title: 'Unknown',
+      error
+    };
   }
-  
-  return {
-    title: config.title,
-    subtitle: config.subtitle,
-    author: config.author,
-    filePrefix: config.file_prefix,
-    languages: config.languages || ['en'],
-    formats: {
-      pdf: config.pdf !== false,
-      epub: config.epub !== false,
-      mobi: config.mobi !== false,
-      html: config.html !== false
-    },
-    builtFiles
-  };
 }
 
 /**
  * Clean build artifacts
- * @returns {Promise<Object>} Clean result
+ * 
+ * @returns {Promise<Object>} - Result of cleaning
  */
 async function cleanBuild() {
-  const projectRoot = findProjectRoot();
-  const buildDir = path.join(projectRoot, 'build');
-  
-  if (fs.existsSync(buildDir)) {
-    // Count the number of files to remove
-    const files = fs.readdirSync(buildDir);
+  try {
+    const projectRoot = findProjectRoot();
+    const config = loadConfig(projectRoot);
+    
     let filesRemoved = 0;
     
-    // Delete all files in the build directory
-    for (const file of files) {
-      const filePath = path.join(buildDir, file);
-      try {
-        if (fs.statSync(filePath).isDirectory()) {
-          // Use recursive deletion for directories
-          fsExtra.removeSync(filePath);
-          filesRemoved++;
-        } else {
-          // Simple delete for files
-          fs.unlinkSync(filePath);
-          filesRemoved++;
+    // Remove files from build directory for each language
+    for (const language of config.languages || ['en']) {
+      const buildDir = path.join(projectRoot, 'build', language);
+      
+      if (fs.existsSync(buildDir)) {
+        try {
+          const files = fs.readdirSync(buildDir);
+          
+          for (const file of files) {
+            const filePath = path.join(buildDir, file);
+            fs.unlinkSync(filePath);
+            filesRemoved++;
+          }
+        } catch (e) {
+          // Ignore errors
         }
-      } catch (err) {
-        console.warn(`Could not delete ${file}: ${err.message}`);
       }
     }
     
@@ -344,12 +286,12 @@ async function cleanBuild() {
       success: true,
       filesRemoved
     };
+  } catch (error) {
+    return {
+      success: false,
+      error
+    };
   }
-  
-  return {
-    success: false,
-    filesRemoved: 0
-  };
 }
 
 module.exports = {

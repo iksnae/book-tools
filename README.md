@@ -1,155 +1,152 @@
 # Book Tools
 
-A comprehensive CLI and utility package for building books in multiple formats from markdown sources. This package extracts the book-building tools from the [book-template](https://github.com/iksnae/book-template) project.
+A collection of tools for building books in multiple formats (PDF, EPUB, MOBI, HTML) from markdown files.
 
-![Node.js Tests](https://github.com/iksnae/book-tools/workflows/Node.js%20Tests/badge.svg)
+## Overview
 
-## Features
+This project provides shell scripts for building books from markdown files using Pandoc and other tools. The scripts handle:
 
-- Build books from Markdown source files
-- Support for multiple languages and formats (PDF, EPUB, MOBI, HTML)
-- Interactive CLI with friendly user experience
-- Structured chapter creation and management
-- Configurable via YAML
+- Combining markdown files into a single document
+- Converting markdown to PDF, EPUB, MOBI, and HTML formats
+- Supporting multiple languages
+- Building books with proper metadata
 
-## Installation
+## Getting Started
+
+### Prerequisites
+
+- **Pandoc** - For markdown conversion
+- **LaTeX** - For PDF generation
+- **Kindlegen** (optional) - For MOBI generation
+- **Calibre** (optional) - Alternative for MOBI generation
+
+### Installation
+
+1. Clone this repository:
+   ```bash
+   git clone https://github.com/yourusername/book-tools.git
+   cd book-tools
+   ```
+
+2. Make the scripts executable:
+   ```bash
+   cd src
+   ./make-scripts-executable.sh
+   ```
+
+### Creating a New Book
+
+To create a new book project with the proper directory structure and sample files:
 
 ```bash
-# Global installation
-npm install -g book-tools
-
-# Local installation
-npm install book-tools
+./src/scripts/create-book.sh my-awesome-book
 ```
 
-## CLI Usage
+This will create a new directory with the specified name containing all the necessary files and directories to get started. You can also specify a language:
 
 ```bash
-# Build book in all formats
-book build
-
-# Build book with interactive prompts
-book interactive
-
-# Create a new chapter
-book create-chapter
-
-# Check chapter structure
-book check-chapter
-
-# Display book information
-book info
-
-# Clean build artifacts
-book clean
+./src/scripts/create-book.sh my-awesome-book es
 ```
 
-## API Usage
+For a completely self-contained book project with its own scripts:
 
-```javascript
-const bookTools = require('book-tools');
-
-// Build a book
-bookTools.build({
-  allLanguages: true,
-  skipPdf: false,
-  skipEpub: false,
-  skipMobi: false,
-  skipHtml: false
-});
-
-// Create a chapter
-bookTools.createChapter({
-  number: '04',
-  title: 'My New Chapter',
-  language: 'en'
-});
+```bash
+./src/scripts/create-book.sh my-awesome-book --copy-scripts
 ```
 
-## Project Structure
+### Building a Book
 
-Your book project should follow this structure:
+To build a book in various formats:
+
+1. Create a book with the directory structure according to the guidelines (see below)
+2. Create a `book.yaml` configuration file
+3. Run the build script:
+   ```bash
+   ./src/scripts/build.sh
+   ```
+
+## Directory Structure
+
+The scripts expect the following directory structure:
 
 ```
-my-book/
-├── book.yaml          # Configuration file
-├── book/              # Markdown source files
-│   ├── en/            # English content
-│   │   ├── chapter-01/
-│   │   │   ├── 00-introduction.md
+your-book-project/
+├── book.yaml           # Book configuration
+├── book/               # Source content
+│   ├── en/             # English content
+│   │   ├── 01-chapter-one/  # Chapter directories
 │   │   │   ├── 01-section.md
-│   │   │   └── images/
-│   │   └── chapter-02/
-│   └── es/            # Spanish content
-├── templates/         # Custom templates
-└── build/             # Output directory (created automatically)
+│   │   │   └── 02-section.md
+│   │   ├── 02-chapter-two/
+│   │   ├── appendices/     # Optional appendices
+│   │   ├── glossary.md     # Optional glossary
+│   │   └── images/         # Language-specific images
+│   └── es/             # Spanish content (similar structure)
+├── resources/          # Resources directory
+│   ├── templates/      # Custom templates
+│   ├── css/            # CSS files for HTML/EPUB
+│   └── images/         # Common images
+└── build/              # Output directory (created automatically)
 ```
 
 ## Configuration
 
-Create a `book.yaml` file in your project root:
+Create a `book.yaml` file with the following structure:
 
 ```yaml
-title: My Book Title
-subtitle: An Amazing Book
-author: Your Name
-file_prefix: my-book
-languages:
-  - en
-  - es
+title: "Your Book Title"
+subtitle: "Your Book Subtitle"
+author: "Your Name"
+publisher: "Your Publisher"
+rights: "Copyright © 2023"
+description: "A description of your book."
+languages: [en, es, fr]  # Languages to build
+
+# PDF Settings
+pdf:
+  enabled: true
+  fontsize: 12pt
+  papersize: letter  # a4, letter, etc.
+  margin: 1in
+  lineheight: 1.5
+
+# EPUB Settings
+epub:
+  enabled: true
+  css: "resources/css/epub.css"
+  cover_image: "resources/images/cover.jpg"
+
+# MOBI Settings
+mobi:
+  enabled: true
+
+# HTML Settings
+html:
+  enabled: true
+  css: "resources/css/html.css"
+  template: "resources/templates/html.template"
 ```
 
-## Development
+## Testing
 
-### Requirements
-
-- Node.js (v14 or higher)
-- Pandoc (for format conversions)
-- LaTeX (for PDF generation)
-- Kindlegen or Calibre (for MOBI generation)
-
-### Testing
-
-The project uses Jest for testing. Test files are located in the `tests` directory.
+To test the system with a sample book:
 
 ```bash
-# Run all tests
-npm test
-
-# Run tests with coverage report
-npm run test:coverage
-
-# Run tests in watch mode
-npm run test:watch
+cd src
+./test-build.sh
 ```
 
-### Testing Status
+This creates a test book project and runs the build process.
 
-The test suite is currently under development. We've implemented:
+## Advanced Options
 
-- Unit tests for core utility functions
-- Basic tests for CLI command structure
-- Tests for project configuration loading
-
-We're working on increasing test coverage. If you'd like to contribute, test coverage for the main module functionality would be greatly appreciated.
-
-### GitHub Actions
-
-This project is configured with GitHub Actions for continuous integration:
-
-- Runs tests on Node.js 20.x
-- Lints code with ESLint
-- Generates test coverage reports
-- Provides detailed test run information
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+For more advanced options and configuration, see the [Script Documentation](src/README.md).
 
 ## License
 
-MIT
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- Inspired by the [iksnae/book-template](https://github.com/iksnae/book-template) repository
+- Uses [Pandoc](https://pandoc.org/) for document conversion

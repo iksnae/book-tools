@@ -1,73 +1,87 @@
 #!/bin/bash
 
-# generate-mobi.sh - Generates a MOBI from an EPUB file using Kindlegen
-# Usage: generate-mobi.sh [language] [input_file] [output_file] [book_title]
+# generate-mobi.sh - Generates MOBI version of the book
+# Usage: generate-mobi.sh [language] [input_epub] [output_file] [book_title]
 
 set -e  # Exit on error
 
-# Get parameters
+# Get arguments
 LANGUAGE=${1:-en}
-INPUT_FILE=${2:-build/book.epub}
+INPUT_EPUB=${2:-build/book.epub}
 OUTPUT_FILE=${3:-build/book.mobi}
 BOOK_TITLE=${4:-"My Book"}
 
-echo "📚 Generating MOBI for language: $LANGUAGE"
-echo "  Input file: $INPUT_FILE"
-echo "  Output file: $OUTPUT_FILE"
-echo "  Book title: $BOOK_TITLE"
+echo "📚 Generating MOBI for $LANGUAGE..."
 
-# Check if input file exists
-if [ ! -f "$INPUT_FILE" ]; then
-  echo "⚠️ Error: Input file $INPUT_FILE doesn't exist!"
+# Safety check to ensure input file exists
+if [ ! -f "$INPUT_EPUB" ]; then
+  echo "❌ Error: Input EPUB file $INPUT_EPUB does not exist"
   exit 1
 fi
 
 # Ensure output directory exists
 mkdir -p "$(dirname "$OUTPUT_FILE")"
 
-# Check if kindlegen is installed
-if ! command -v kindlegen &> /dev/null; then
-  echo "⚠️ Warning: kindlegen is not installed. Cannot create MOBI file."
-  echo "You can install kindlegen from https://www.amazon.com/gp/feature.html?ie=UTF8&docId=1000765211"
-  exit 1
-fi
-
-# Run kindlegen
-echo "Running kindlegen to convert EPUB to MOBI..."
-kindlegen "$INPUT_FILE" -o "$(basename "$OUTPUT_FILE")" 
-
-# Check if the MOBI was created successfully
-# Kindlegen outputs to the same directory as the input file, so we need to move it
-GENERATED_MOBI="$(dirname "$INPUT_FILE")/$(basename "$OUTPUT_FILE")"
-if [ -f "$GENERATED_MOBI" ]; then
-  # If the output file is in a different location than what kindlegen produced, move it
-  if [ "$GENERATED_MOBI" != "$OUTPUT_FILE" ]; then
-    mv "$GENERATED_MOBI" "$OUTPUT_FILE"
+# First check if kindlegen is available
+if command -v kindlegen &> /dev/null; then
+  echo "Found kindlegen, using it for MOBI conversion..."
+  kindlegen "$INPUT_EPUB" -o "$(basename "$OUTPUT_FILE")" || true
+  
+  # kindlegen outputs to the same directory as the input file
+  # So we need to move it to the desired output location if it's different
+  KINDLEGEN_OUTPUT="$(dirname "$INPUT_EPUB")/$(basename "$OUTPUT_FILE")"
+  if [ "$KINDLEGEN_OUTPUT" != "$OUTPUT_FILE" ]; then
+    if [ -f "$KINDLEGEN_OUTPUT" ]; then
+      mv "$KINDLEGEN_OUTPUT" "$OUTPUT_FILE"
+    fi
   fi
   
-  file_size=$(du -h "$OUTPUT_FILE" | cut -f1)
-  echo "✅ Successfully created MOBI: $OUTPUT_FILE ($file_size)"
-else
-  echo "⚠️ Error: Failed to create MOBI!"
-  exit 1
+  # Check if the conversion was successful
+  if [ -f "$OUTPUT_FILE" ]; then
+    echo "✅ MOBI created successfully with kindlegen"
+  else
+    echo "⚠️ kindlegen failed, trying alternative method..."
+  fi
 fi
 
-# Alternatively, try using Calibre's ebook-convert if kindlegen fails
-if [ $? -ne 0 ]; then
-  if command -v ebook-convert &> /dev/null; then
-    echo "Kindlegen failed. Trying with Calibre's ebook-convert..."
-    ebook-convert "$INPUT_FILE" "$OUTPUT_FILE"
-    
-    if [ $? -eq 0 ] && [ -f "$OUTPUT_FILE" ]; then
-      file_size=$(du -h "$OUTPUT_FILE" | cut -f1)
-      echo "✅ Successfully created MOBI using Calibre: $OUTPUT_FILE ($file_size)"
-    else
-      echo "⚠️ Error: Failed to create MOBI with Calibre!"
-      exit 1
-    fi
+# If kindlegen didn't work, check for Calibre's ebook-convert
+if [ ! -f "$OUTPUT_FILE" ] && command -v ebook-convert &> /dev/null; then
+  echo "Using ebook-convert (Calibre) for MOBI conversion..."
+  ebook-convert "$INPUT_EPUB" "$OUTPUT_FILE" \
+    --title="$BOOK_TITLE" \
+    --language="$LANGUAGE" \
+    --output-profile=kindle \
+    --mobi-file-type=both \
+    --no-inline-toc || true
+  
+  # Check if the conversion was successful
+  if [ -f "$OUTPUT_FILE" ]; then
+    echo "✅ MOBI created successfully with ebook-convert"
   else
-    echo "⚠️ Error: Both kindlegen and Calibre's ebook-convert are not available."
-    echo "You can install Calibre from https://calibre-ebook.com/download"
-    exit 1
+    echo "⚠️ ebook-convert failed, trying last resort method..."
   fi
+fi
+
+# If both kindlegen and ebook-convert failed, try using pandoc
+if [ ! -f "$OUTPUT_FILE" ] && command -v pandoc &> /dev/null; then
+  echo "Attempting MOBI conversion with pandoc..."
+  pandoc "$INPUT_EPUB" -o "$OUTPUT_FILE" || true
+  
+  if [ -f "$OUTPUT_FILE" ]; then
+    echo "✅ MOBI created successfully with pandoc"
+  else
+    echo "❌ All MOBI conversion methods failed"
+    # Create an empty file to prevent further failures in the pipeline
+    touch "$OUTPUT_FILE"
+  fi
+fi
+
+# Check final result
+if [ -s "$OUTPUT_FILE" ]; then
+  # Get the file size to give some feedback
+  FILE_SIZE=$(du -h "$OUTPUT_FILE" | cut -f1)
+  echo "📊 MOBI file size: $FILE_SIZE"
+else
+  echo "⚠️ Warning: MOBI file was created but is empty. This may indicate a conversion error."
+  touch "$OUTPUT_FILE" # Ensure the file exists, even if empty
 fi

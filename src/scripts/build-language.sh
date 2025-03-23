@@ -1,174 +1,127 @@
 #!/bin/bash
 
-# build-language.sh - Builds a specific language version of the book
-# Usage: build-language.sh [language] [--skip-pdf] [--skip-epub] [--skip-mobi] [--skip-html]
+# build-language.sh - Builds book formats for a specific language
+# Usage: build-language.sh [language] [config_file]
 
 set -e  # Exit on error
 
-# Get the language from the first argument
+# Get arguments
 LANGUAGE=${1:-en}
+CONFIG_FILE=${2:-book.yaml}
+SCRIPTS_DIR="$(dirname "$0")"
+BUILD_DIR="build/$LANGUAGE"
 
-# Define skip flags with defaults
-SKIP_PDF=false
-SKIP_EPUB=false
-SKIP_MOBI=false
-SKIP_HTML=false
+echo "🔧 Building $LANGUAGE version of the book..."
 
-# Process additional arguments
-shift
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --skip-pdf) SKIP_PDF=true ;;
-    --skip-epub) SKIP_EPUB=true ;;
-    --skip-mobi) SKIP_MOBI=true ;;
-    --skip-html) SKIP_HTML=true ;;
-  esac
-  shift
-done
-
-echo "📚 Building $LANGUAGE version of the book..."
-
-# Check if this language directory exists
-if [ ! -d "book/$LANGUAGE" ]; then
-  echo "⚠️ Error: Language directory book/$LANGUAGE doesn't exist!"
-  ls -la book/
-  exit 1
-fi
-
-# Debug: List content of the language directory
-echo "Content of book/$LANGUAGE:"
-ls -la "book/$LANGUAGE/"
-
-# Get file names for output based on language and configuration
-# Use FILE_PREFIX from book.yaml if available, otherwise use language-specific defaults
-if [ -n "$FILE_PREFIX" ]; then
-  if [ "$LANGUAGE" = "en" ]; then
-    # For English, use the file prefix directly
-    PDF_FILENAME="$FILE_PREFIX.pdf"
-    EPUB_FILENAME="$FILE_PREFIX.epub"
-    MOBI_FILENAME="$FILE_PREFIX.mobi"
-    HTML_FILENAME="$FILE_PREFIX.html"
-    MARKDOWN_FILENAME="$FILE_PREFIX.md"
-  else
-    # For other languages, add language suffix to avoid conflicts
-    PDF_FILENAME="$FILE_PREFIX-$LANGUAGE.pdf"
-    EPUB_FILENAME="$FILE_PREFIX-$LANGUAGE.epub"
-    MOBI_FILENAME="$FILE_PREFIX-$LANGUAGE.mobi"
-    HTML_FILENAME="$FILE_PREFIX-$LANGUAGE.html"
-    MARKDOWN_FILENAME="$FILE_PREFIX-$LANGUAGE.md"
-  fi
+# Load book metadata from config
+if [ -f "$CONFIG_FILE" ]; then
+  BOOK_TITLE=$(grep "^title:" "$CONFIG_FILE" | cut -d ':' -f 2- | sed 's/^[ \t]*//')
+  BOOK_SUBTITLE=$(grep "^subtitle:" "$CONFIG_FILE" | cut -d ':' -f 2- | sed 's/^[ \t]*//')
+  AUTHOR=$(grep "^author:" "$CONFIG_FILE" | cut -d ':' -f 2- | sed 's/^[ \t]*//')
+  PUBLISHER=$(grep "^publisher:" "$CONFIG_FILE" | cut -d ':' -f 2- | sed 's/^[ \t]*//')
 else
-  # Default fallback filenames if FILE_PREFIX is not set
-  if [ "$LANGUAGE" = "en" ]; then
-    PDF_FILENAME="book.pdf"
-    EPUB_FILENAME="book.epub"
-    MOBI_FILENAME="book.mobi"
-    HTML_FILENAME="book.html"
-    MARKDOWN_FILENAME="book.md"
-  else
-    PDF_FILENAME="book-$LANGUAGE.pdf"
-    EPUB_FILENAME="book-$LANGUAGE.epub"
-    MOBI_FILENAME="book-$LANGUAGE.mobi"
-    HTML_FILENAME="book-$LANGUAGE.html"
-    MARKDOWN_FILENAME="book-$LANGUAGE.md"
-  fi
-fi
-
-# Debug output of paths
-echo "Output filenames:"
-echo "  - Markdown: $MARKDOWN_FILENAME"
-echo "  - PDF: $PDF_FILENAME"
-echo "  - EPUB: $EPUB_FILENAME"
-echo "  - MOBI: $MOBI_FILENAME"
-echo "  - HTML: $HTML_FILENAME"
-
-# Define output paths
-MARKDOWN_PATH="build/$MARKDOWN_FILENAME"
-PDF_PATH="build/$PDF_FILENAME"
-EPUB_PATH="build/$EPUB_FILENAME"
-MOBI_PATH="build/$MOBI_FILENAME"
-HTML_PATH="build/$HTML_FILENAME"
-
-# Create a language directory for web pages if needed
-if [ "$LANGUAGE" != "en" ]; then
-  mkdir -p "build/$LANGUAGE"
-  mkdir -p "build/$LANGUAGE/images"
-fi
-
-# Set up resource paths for pandoc
-# Improve path handling - list all possible resource paths explicitly
-RESOURCE_PATHS=".:book:book/$LANGUAGE:build:book/$LANGUAGE/images:book/images:build/images:build/$LANGUAGE/images"
-
-# Step 1: Generate combined markdown file from source files
-echo "📝 Combining markdown files for $LANGUAGE..."
-source src/scripts/combine-markdown.sh "$LANGUAGE" "$MARKDOWN_PATH" "$BOOK_TITLE" "$BOOK_SUBTITLE"
-
-# Verify the combined markdown file was created
-if [ ! -f "$MARKDOWN_PATH" ] || [ ! -s "$MARKDOWN_PATH" ]; then
-  echo "⚠️ Error: Combined markdown file wasn't created or is empty!"
+  echo "❌ Config file not found: $CONFIG_FILE"
   exit 1
 fi
 
-# Create a safety copy for fallbacks
-cp "$MARKDOWN_PATH" "${MARKDOWN_PATH%.*}-safe.md"
+# Create build directory
+mkdir -p "$BUILD_DIR"
 
-# Step 2: Generate PDF
-if [ "$SKIP_PDF" = false ]; then
-  echo "📄 Generating PDF for $LANGUAGE..."
-  source src/scripts/generate-pdf.sh "$LANGUAGE" "$MARKDOWN_PATH" "$PDF_PATH" "$BOOK_TITLE" "$RESOURCE_PATHS"
-  # Verify PDF was created
-  if [ -f "$PDF_PATH" ]; then
-    echo "✅ PDF created successfully: $PDF_PATH"
-    du -h "$PDF_PATH"
-  else
-    echo "⚠️ PDF generation failed!"
-  fi
+# Set file paths
+MARKDOWN_OUTPUT="$BUILD_DIR/book.md"
+PDF_OUTPUT="$BUILD_DIR/book.pdf"
+EPUB_OUTPUT="$BUILD_DIR/book.epub"
+MOBI_OUTPUT="$BUILD_DIR/book.mobi"
+HTML_OUTPUT="$BUILD_DIR/book.html"
+RESOURCES_DIR="resources"
+
+# 1. Combine markdown files
+echo "📝 Combining markdown files..."
+"$SCRIPTS_DIR/combine-markdown.sh" "$LANGUAGE" "$MARKDOWN_OUTPUT" "$BOOK_TITLE" "$BOOK_SUBTITLE"
+
+# Check if markdown was generated successfully
+if [ ! -s "$MARKDOWN_OUTPUT" ]; then
+  echo "❌ Failed to generate markdown output"
+  exit 1
 fi
 
-# Step 3: Generate EPUB
-if [ "$SKIP_EPUB" = false ]; then
-  echo "📱 Generating EPUB for $LANGUAGE..."
-  source src/scripts/generate-epub.sh "$LANGUAGE" "$MARKDOWN_PATH" "$EPUB_PATH" "$BOOK_TITLE" "$BOOK_SUBTITLE" "$RESOURCE_PATHS"
-  # Verify EPUB was created
-  if [ -f "$EPUB_PATH" ]; then
-    echo "✅ EPUB created successfully: $EPUB_PATH"
-    du -h "$EPUB_PATH"
-  else
-    echo "⚠️ EPUB generation failed!"
-  fi
+# 2. Generate PDF (if pandoc is available)
+if command -v pandoc &> /dev/null; then
+  echo "📄 Generating PDF..."
+  "$SCRIPTS_DIR/generate-pdf.sh" "$LANGUAGE" "$MARKDOWN_OUTPUT" "$PDF_OUTPUT" "$BOOK_TITLE" "$RESOURCES_DIR"
+else
+  echo "⚠️ Pandoc not installed - skipping PDF generation"
 fi
 
-# Step 4: Generate MOBI
-if [ "$SKIP_MOBI" = false ] && [ "$SKIP_EPUB" = false ]; then
-  echo "📚 Generating MOBI for $LANGUAGE..."
-  source src/scripts/generate-mobi.sh "$LANGUAGE" "$EPUB_PATH" "$MOBI_PATH" "$BOOK_TITLE"
-  # Verify MOBI was created
-  if [ -f "$MOBI_PATH" ]; then
-    echo "✅ MOBI created successfully: $MOBI_PATH"
-    du -h "$MOBI_PATH"
-  else
-    echo "⚠️ MOBI generation failed or was skipped!"
-  fi
+# 3. Generate EPUB
+if command -v pandoc &> /dev/null; then
+  echo "📱 Generating EPUB..."
+  "$SCRIPTS_DIR/generate-epub.sh" "$LANGUAGE" "$MARKDOWN_OUTPUT" "$EPUB_OUTPUT" "$BOOK_TITLE" "$BOOK_SUBTITLE" "$RESOURCES_DIR"
+else
+  echo "⚠️ Pandoc not installed - skipping EPUB generation"
 fi
 
-# Step 5: Generate HTML
-if [ "$SKIP_HTML" = false ]; then
-  echo "🌐 Generating HTML for $LANGUAGE..."
-  source src/scripts/generate-html.sh "$LANGUAGE" "$MARKDOWN_PATH" "$HTML_PATH" "$BOOK_TITLE" "$RESOURCE_PATHS"
-  
-  # Create index.html in appropriate directory
-  if [ "$LANGUAGE" = "en" ]; then
-    cp "$HTML_PATH" "build/index.html"
-    echo "Created index.html for English"
-  else
-    mkdir -p "build/$LANGUAGE"
-    cp "$HTML_PATH" "build/$LANGUAGE/index.html"
-    echo "Created index.html for $LANGUAGE"
-  fi
+# 4. Generate MOBI (if kindlegen or ebook-convert is available)
+if command -v kindlegen &> /dev/null || command -v ebook-convert &> /dev/null; then
+  echo "📚 Generating MOBI..."
+  "$SCRIPTS_DIR/generate-mobi.sh" "$LANGUAGE" "$EPUB_OUTPUT" "$MOBI_OUTPUT" "$BOOK_TITLE"
+else
+  echo "⚠️ Neither kindlegen nor Calibre installed - skipping MOBI generation"
 fi
 
-# List final build directory contents for this language
-echo "📂 Contents of build directory for $LANGUAGE:"
-ls -la "build/" | grep -E "$MARKDOWN_FILENAME|$PDF_FILENAME|$EPUB_FILENAME|$MOBI_FILENAME|$HTML_FILENAME" 2>/dev/null || echo "No output files found!"
+# 5. Generate HTML (if pandoc is available)
+if command -v pandoc &> /dev/null; then
+  echo "🌐 Generating HTML..."
+  pandoc "$MARKDOWN_OUTPUT" \
+    -o "$HTML_OUTPUT" \
+    --metadata title="$BOOK_TITLE" \
+    --metadata author="$AUTHOR" \
+    --toc \
+    --standalone \
+    --template="$RESOURCES_DIR/templates/html.template" 2>/dev/null || \
+  pandoc "$MARKDOWN_OUTPUT" \
+    -o "$HTML_OUTPUT" \
+    --metadata title="$BOOK_TITLE" \
+    --metadata author="$AUTHOR" \
+    --toc \
+    --standalone
+else
+  echo "⚠️ Pandoc not installed - skipping HTML generation"
+fi
 
-echo "✅ Successfully built $LANGUAGE version of the book"
+# Print summary of generated files
+echo "✅ Build complete for language: $LANGUAGE"
+echo ""
+echo "Generated files:"
+
+if [ -f "$MARKDOWN_OUTPUT" ]; then
+  MARKDOWN_SIZE=$(du -h "$MARKDOWN_OUTPUT" | cut -f1)
+  echo " - Markdown: $MARKDOWN_OUTPUT ($MARKDOWN_SIZE)"
+fi
+
+if [ -f "$PDF_OUTPUT" ]; then
+  PDF_SIZE=$(du -h "$PDF_OUTPUT" | cut -f1)
+  echo " - PDF: $PDF_OUTPUT ($PDF_SIZE)"
+fi
+
+if [ -f "$EPUB_OUTPUT" ]; then
+  EPUB_SIZE=$(du -h "$EPUB_OUTPUT" | cut -f1)
+  echo " - EPUB: $EPUB_OUTPUT ($EPUB_SIZE)"
+fi
+
+if [ -f "$MOBI_OUTPUT" ]; then
+  MOBI_SIZE=$(du -h "$MOBI_OUTPUT" | cut -f1)
+  echo " - MOBI: $MOBI_OUTPUT ($MOBI_SIZE)"
+fi
+
+if [ -f "$HTML_OUTPUT" ]; then
+  HTML_SIZE=$(du -h "$HTML_OUTPUT" | cut -f1)
+  echo " - HTML: $HTML_OUTPUT ($HTML_SIZE)"
+fi
+
+# Get word count from markdown
+if [ -f "$MARKDOWN_OUTPUT" ]; then
+  WORD_COUNT=$(wc -w < "$MARKDOWN_OUTPUT" | xargs)
+  echo ""
+  echo "📊 Word count: $WORD_COUNT words"
+fi

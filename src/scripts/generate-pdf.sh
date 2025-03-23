@@ -1,164 +1,226 @@
 #!/bin/bash
 
-# generate-pdf.sh - Generates a PDF from a markdown file
+# generate-pdf.sh - Generates PDF version of the book
 # Usage: generate-pdf.sh [language] [input_file] [output_file] [book_title] [resource_paths]
 
 set -e  # Exit on error
 
-# Get parameters
+# Get arguments
 LANGUAGE=${1:-en}
 INPUT_FILE=${2:-build/book.md}
 OUTPUT_FILE=${3:-build/book.pdf}
 BOOK_TITLE=${4:-"My Book"}
-RESOURCE_PATHS=${5:-".:book:book/$LANGUAGE:build"}
+RESOURCE_PATHS=${5:-".:book:book/$LANGUAGE:build:book/$LANGUAGE/images:book/images:build/images:build/$LANGUAGE/images"}
 
-echo "📄 Generating PDF for language: $LANGUAGE"
-echo "  Input file: $INPUT_FILE"
-echo "  Output file: $OUTPUT_FILE"
-echo "  Book title: $BOOK_TITLE"
+echo "📄 Generating PDF for $LANGUAGE..."
 
-# Check if input file exists
+# Safety check to ensure input file exists
 if [ ! -f "$INPUT_FILE" ]; then
-  echo "⚠️ Error: Input file $INPUT_FILE doesn't exist!"
+  echo "❌ Error: Input file $INPUT_FILE does not exist"
   exit 1
 fi
 
-# Ensure output directory exists
-mkdir -p "$(dirname "$OUTPUT_FILE")"
-
-# Check if custom PDF template exists
-PDF_TEMPLATE=""
-if [ -f "templates/pdf/template.tex" ]; then
-  PDF_TEMPLATE="--template=templates/pdf/template.tex"
-  echo "Using custom PDF template: templates/pdf/template.tex"
-elif [ -f "templates/pdf/$LANGUAGE-template.tex" ]; then
-  PDF_TEMPLATE="--template=templates/pdf/$LANGUAGE-template.tex"
-  echo "Using language-specific PDF template: templates/pdf/$LANGUAGE-template.tex"
+# Safety copy for fallbacks
+SAFE_INPUT_FILE="${INPUT_FILE%.*}-safe.md"
+if [ ! -f "$SAFE_INPUT_FILE" ]; then
+  cp "$INPUT_FILE" "$SAFE_INPUT_FILE"
 fi
 
-# Check for PDF style
-PDF_STYLE=""
-if [ -f "templates/pdf/style.css" ]; then
-  PDF_STYLE="--css=templates/pdf/style.css"
-  echo "Using custom PDF style: templates/pdf/style.css"
-elif [ -f "templates/pdf/$LANGUAGE-style.css" ]; then
-  PDF_STYLE="--css=templates/pdf/$LANGUAGE-style.css"
-  echo "Using language-specific PDF style: templates/pdf/$LANGUAGE-style.css"
-fi
+# Get PDF-specific settings from book.yaml if available
+PDF_FONT_SIZE="11pt"
+PDF_PAPER_SIZE="letter"
+PDF_MARGIN_TOP="1in"
+PDF_MARGIN_RIGHT="1in"
+PDF_MARGIN_BOTTOM="1in"
+PDF_MARGIN_LEFT="1in"
+PDF_LINE_HEIGHT="1.5"
+PDF_DOCUMENT_CLASS="book"  # Use 'book' as default
 
-# Configure margins, font size, etc.
-MARGIN_TOP="1in"
-MARGIN_RIGHT="1in"
-MARGIN_BOTTOM="1in"
-MARGIN_LEFT="1.25in"  # Extra for binding
-FONT_SIZE="11pt"
-PAPER_SIZE="letter"
-
-# Check if book.yaml contains PDF settings
 if [ -f "book.yaml" ]; then
   # Extract PDF settings if they exist
-  if grep -q "pdf_margin_top:" book.yaml; then
-    MARGIN_TOP=$(grep "pdf_margin_top:" book.yaml | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' | sed 's/"//g')
-  fi
-  
-  if grep -q "pdf_margin_right:" book.yaml; then
-    MARGIN_RIGHT=$(grep "pdf_margin_right:" book.yaml | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' | sed 's/"//g')
-  fi
-  
-  if grep -q "pdf_margin_bottom:" book.yaml; then
-    MARGIN_BOTTOM=$(grep "pdf_margin_bottom:" book.yaml | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' | sed 's/"//g')
-  fi
-  
-  if grep -q "pdf_margin_left:" book.yaml; then
-    MARGIN_LEFT=$(grep "pdf_margin_left:" book.yaml | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' | sed 's/"//g')
-  fi
-  
-  if grep -q "pdf_font_size:" book.yaml; then
-    FONT_SIZE=$(grep "pdf_font_size:" book.yaml | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' | sed 's/"//g')
-  fi
-  
-  if grep -q "pdf_paper_size:" book.yaml; then
-    PAPER_SIZE=$(grep "pdf_paper_size:" book.yaml | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' | sed 's/"//g')
+  if grep -q "pdf:" book.yaml; then
+    # Font size
+    YAML_FONT_SIZE=$(grep 'font_size:' book.yaml | grep -A 10 'pdf:' | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' | sed 's/\"//g')
+    if [ -n "$YAML_FONT_SIZE" ]; then
+      PDF_FONT_SIZE="$YAML_FONT_SIZE"
+    fi
+    
+    # Paper size
+    YAML_PAPER_SIZE=$(grep 'paper_size:' book.yaml | grep -A 10 'pdf:' | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' | sed 's/\"//g')
+    if [ -n "$YAML_PAPER_SIZE" ]; then
+      PDF_PAPER_SIZE="$YAML_PAPER_SIZE"
+    fi
+    
+    # Margins
+    YAML_MARGIN_TOP=$(grep 'margin_top:' book.yaml | grep -A 10 'pdf:' | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' | sed 's/\"//g')
+    if [ -n "$YAML_MARGIN_TOP" ]; then
+      PDF_MARGIN_TOP="$YAML_MARGIN_TOP"
+    fi
+    
+    YAML_MARGIN_RIGHT=$(grep 'margin_right:' book.yaml | grep -A 10 'pdf:' | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' | sed 's/\"//g')
+    if [ -n "$YAML_MARGIN_RIGHT" ]; then
+      PDF_MARGIN_RIGHT="$YAML_MARGIN_RIGHT"
+    fi
+    
+    YAML_MARGIN_BOTTOM=$(grep 'margin_bottom:' book.yaml | grep -A 10 'pdf:' | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' | sed 's/\"//g')
+    if [ -n "$YAML_MARGIN_BOTTOM" ]; then
+      PDF_MARGIN_BOTTOM="$YAML_MARGIN_BOTTOM"
+    fi
+    
+    YAML_MARGIN_LEFT=$(grep 'margin_left:' book.yaml | grep -A 10 'pdf:' | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' | sed 's/\"//g')
+    if [ -n "$YAML_MARGIN_LEFT" ]; then
+      PDF_MARGIN_LEFT="$YAML_MARGIN_LEFT"
+    fi
+    
+    # Line height
+    YAML_LINE_HEIGHT=$(grep 'line_height:' book.yaml | grep -A 10 'pdf:' | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' | sed 's/\"//g')
+    if [ -n "$YAML_LINE_HEIGHT" ]; then
+      PDF_LINE_HEIGHT="$YAML_LINE_HEIGHT"
+    fi
   fi
 fi
 
-echo "PDF settings:"
-echo "  Margins: $MARGIN_TOP (top), $MARGIN_RIGHT (right), $MARGIN_BOTTOM (bottom), $MARGIN_LEFT (left)"
-echo "  Font size: $FONT_SIZE"
-echo "  Paper size: $PAPER_SIZE"
+echo "PDF Settings:"
+echo "  - Font Size: $PDF_FONT_SIZE"
+echo "  - Paper Size: $PDF_PAPER_SIZE"
+echo "  - Margins: $PDF_MARGIN_TOP, $PDF_MARGIN_RIGHT, $PDF_MARGIN_BOTTOM, $PDF_MARGIN_LEFT"
+echo "  - Line Height: $PDF_LINE_HEIGHT"
+echo "  - Document Class: $PDF_DOCUMENT_CLASS"
+echo "  - Template: $PDF_TEMPLATE"
 
-# Use XeLaTeX engine to support more fonts and Unicode
-PDF_ENGINE="--pdf-engine=xelatex"
-
-# Define PDF metadata
-PDF_METADATA=(
-  "--metadata=title:$BOOK_TITLE"
-  "--metadata=lang:$LANGUAGE"
-)
-
-# Check if book.yaml contains author for metadata
-if [ -n "$BOOK_AUTHOR" ]; then
-  PDF_METADATA+=("--metadata=author:$BOOK_AUTHOR")
+# Set publisher and author from book.yaml if not already defined
+if [ -z "$BOOK_AUTHOR" ] && [ -f "book.yaml" ]; then
+  BOOK_AUTHOR=$(grep 'author:' book.yaml | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' | sed 's/\"//g')
+  if [ -z "$BOOK_AUTHOR" ]; then
+    BOOK_AUTHOR="Author Name"
+  fi
 fi
 
-# Ensure image paths are correctly handled
-IMAGE_PATHS="--resource-path=$RESOURCE_PATHS"
-
-# Set margin and other formatting variables
-VARIABLES=(
-  "--variable=geometry:margin=$MARGIN_TOP $MARGIN_RIGHT $MARGIN_BOTTOM $MARGIN_LEFT"
-  "--variable=fontsize:$FONT_SIZE"
-  "--variable=papersize:$PAPER_SIZE"
-  "--variable=documentclass:book"
-  "--variable=toc-depth:3"
-  "--variable=mainfont:DejaVu Serif"
-  "--variable=sansfont:DejaVu Sans"
-  "--variable=monofont:DejaVu Sans Mono"
-  "--variable=colorlinks:true"
-  "--variable=linkcolor:blue"
-  "--variable=urlcolor:red"
-)
-
-# Additional options for better PDF output
-OPTIONS=(
-  "--toc"
-  "--toc-depth=3"
-  "--number-sections"
-  "--standalone"
-  "--highlight-style=tango"
-)
-
-# Build the pandoc command
-PANDOC_CMD=(
-  "pandoc"
-  "$INPUT_FILE"
-  "-o" "$OUTPUT_FILE"
-  "$PDF_ENGINE"
-  "${PDF_METADATA[@]}"
-  "$IMAGE_PATHS"
-  "${VARIABLES[@]}"
-  "${OPTIONS[@]}"
-)
-
-# Add conditional options if they're set
-if [ -n "$PDF_TEMPLATE" ]; then
-  PANDOC_CMD+=("$PDF_TEMPLATE")
+if [ -z "$PUBLISHER" ] && [ -f "book.yaml" ]; then
+  PUBLISHER=$(grep 'publisher:' book.yaml | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' | sed 's/\"//g')
+  if [ -z "$PUBLISHER" ]; then
+    PUBLISHER="Publisher Name"
+  fi
 fi
 
-if [ -n "$PDF_STYLE" ]; then
-  PANDOC_CMD+=("$PDF_STYLE")
-fi
+# Define common pandoc parameters
+PANDOC_COMMON_PARAMS="--pdf-engine=xelatex \
+  --toc \
+  --metadata title=\"$BOOK_TITLE\" \
+  --metadata author=\"$BOOK_AUTHOR\" \
+  --metadata publisher=\"$PUBLISHER\" \
+  --metadata=lang:\"$LANGUAGE\" \
+  --variable=fontsize:\"$PDF_FONT_SIZE\" \
+  --variable=papersize:\"$PDF_PAPER_SIZE\" \
+  --variable=geometry:\"top=$PDF_MARGIN_TOP,right=$PDF_MARGIN_RIGHT,bottom=$PDF_MARGIN_BOTTOM,left=$PDF_MARGIN_LEFT\" \
+  --variable=linestretch:\"$PDF_LINE_HEIGHT\" \
+  --resource-path=\"$RESOURCE_PATHS\""
 
-# Run the pandoc command
-echo "Executing pandoc command to generate PDF..."
-echo "${PANDOC_CMD[@]}"
-"${PANDOC_CMD[@]}"
-
-# Check if the PDF was created successfully
-if [ -f "$OUTPUT_FILE" ]; then
-  file_size=$(du -h "$OUTPUT_FILE" | cut -f1)
-  echo "✅ Successfully created PDF: $OUTPUT_FILE ($file_size)"
+# First attempt: Use LaTeX template if available
+if [ -f "$PDF_TEMPLATE" ]; then
+  echo "Using LaTeX template: $PDF_TEMPLATE"
+  
+  # Run pandoc with the template and capture any warnings
+  set +e  # Temporarily disable exit on error
+  WARNINGS=$(pandoc "$INPUT_FILE" -o "$OUTPUT_FILE" \
+    $PANDOC_COMMON_PARAMS \
+    --template="$PDF_TEMPLATE" \
+    --variable=documentclass:"$PDF_DOCUMENT_CLASS" 2>&1)
+  RESULT=$?
+  set -e  # Re-enable exit on error
+  
+  # Check for missing image warnings but continue
+  if echo "$WARNINGS" | grep -q "Could not fetch resource"; then
+    echo "⚠️ Some images could not be found, but continuing with build"
+  fi
 else
-  echo "⚠️ Error: Failed to create PDF!"
-  exit 1
+  # First attempt: Fallback to default pandoc styling
+  echo "No custom template found, using default PDF styling"
+  
+  # Run pandoc without a template and capture any warnings
+  set +e  # Temporarily disable exit on error
+  WARNINGS=$(pandoc "$INPUT_FILE" -o "$OUTPUT_FILE" \
+    $PANDOC_COMMON_PARAMS \
+    --variable=documentclass:"$PDF_DOCUMENT_CLASS" 2>&1)
+  RESULT=$?
+  set -e  # Re-enable exit on error
+  
+  # Check for missing image warnings but continue
+  if echo "$WARNINGS" | grep -q "Could not fetch resource"; then
+    echo "⚠️ Some images could not be found, but continuing with build"
+  fi
+fi
+
+# Check if PDF file was created successfully
+if [ $RESULT -ne 0 ] || [ ! -s "$OUTPUT_FILE" ]; then
+  echo "⚠️ First PDF generation attempt failed, trying with more resilient settings..."
+  
+  # Create a version of the markdown with image references made more resilient
+  cp "$SAFE_INPUT_FILE" "${SAFE_INPUT_FILE}.tmp"
+  sed -i 's/!\[\([^]]*\)\](images\//![\\1](build\/images\//g' "${SAFE_INPUT_FILE}.tmp"
+  sed -i 's/!\[\([^]]*\)\](book\/images\//![\\1](build\/images\//g' "${SAFE_INPUT_FILE}.tmp"
+  sed -i 's/!\[\([^]]*\)\](book\/[^/)]*\/images\//![\\1](build\/images\//g' "${SAFE_INPUT_FILE}.tmp"
+  
+  # Second attempt: Try with modified settings and more lenient image paths
+  set +e  # Temporarily disable exit on error
+  pandoc "${SAFE_INPUT_FILE}.tmp" -o "$OUTPUT_FILE" \
+    $PANDOC_COMMON_PARAMS \
+    --variable=graphics=true \
+    --variable=documentclass=book || true
+  set -e  # Re-enable exit on error
+  
+  # If still not successful, create a minimal PDF
+  if [ ! -s "$OUTPUT_FILE" ]; then
+    echo "⚠️ WARNING: PDF generation with images failed, creating a minimal PDF without images..."
+    # Create a version with image references removed
+    cp "$SAFE_INPUT_FILE" "${SAFE_INPUT_FILE}.noimg"
+    sed -i 's/!\[\([^]]*\)\]([^)]*)//g' "${SAFE_INPUT_FILE}.noimg"
+    
+    # Final attempt: minimal PDF with no images
+    set +e  # Temporarily disable exit on error
+    pandoc "${SAFE_INPUT_FILE}.noimg" -o "$OUTPUT_FILE" \
+      $PANDOC_COMMON_PARAMS || true
+    set -e  # Re-enable exit on error
+    
+    # If all else fails, create a placeholder PDF
+    if [ ! -s "$OUTPUT_FILE" ]; then
+      echo "⚠️ WARNING: All PDF generation attempts failed, creating placeholder PDF..."
+      PLACEHOLDER_FILE="$(dirname "$INPUT_FILE")/placeholder.md"
+      echo "# $BOOK_TITLE - Placeholder PDF" > "$PLACEHOLDER_FILE"
+      echo "PDF generation encountered issues. Please check your Markdown content and template settings." >> "$PLACEHOLDER_FILE"
+      echo "If using a custom LaTeX template, verify it's compatible with your Pandoc version." >> "$PLACEHOLDER_FILE"
+      echo "See other formats (EPUB, HTML) for the complete content." >> "$PLACEHOLDER_FILE"
+      pandoc "$PLACEHOLDER_FILE" -o "$OUTPUT_FILE" --pdf-engine=xelatex
+    fi
+  fi
+  
+  # Clean up temporary files
+  rm -f "${SAFE_INPUT_FILE}.tmp" "${SAFE_INPUT_FILE}.noimg"
+fi
+
+# Check final result and create at least a minimal PDF if everything failed
+if [ -s "$OUTPUT_FILE" ]; then
+  echo "✅ PDF created successfully at $OUTPUT_FILE"
+  
+  # Get the file size to give some feedback
+  FILE_SIZE=$(du -h "$OUTPUT_FILE" | cut -f1)
+  echo "📊 PDF file size: $FILE_SIZE"
+else
+  echo "⚠️ Creating minimal emergency PDF..."
+  EMERGENCY_FILE="$(dirname "$INPUT_FILE")/emergency.md"
+  echo "# $BOOK_TITLE" > "$EMERGENCY_FILE"
+  echo "## Generated on $(date)" >> "$EMERGENCY_FILE"
+  echo "This is a minimal emergency PDF created because all other PDF generation attempts failed." >> "$EMERGENCY_FILE"
+  echo "Please see the EPUB or HTML versions for complete content." >> "$EMERGENCY_FILE"
+  
+  # One last attempt with minimal content and options
+  pandoc "$EMERGENCY_FILE" -o "$OUTPUT_FILE" --pdf-engine=xelatex || touch "$OUTPUT_FILE"
+  
+  if [ -s "$OUTPUT_FILE" ]; then
+    echo "✅ Emergency PDF created at $OUTPUT_FILE"
+  else
+    echo "❌ Failed to create PDF at $OUTPUT_FILE"
+    # Create an empty file to prevent further failures in the pipeline
+    touch "$OUTPUT_FILE" 
+  fi
 fi

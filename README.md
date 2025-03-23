@@ -123,14 +123,24 @@ npm run test:coverage
 npm run test:watch
 ```
 
+### Testing Status
+
+The test suite is currently under development. We've implemented:
+
+- Unit tests for core utility functions
+- Basic tests for CLI command structure
+- Tests for project configuration loading
+
+We're working on increasing test coverage. If you'd like to contribute, test coverage for the main module functionality would be greatly appreciated.
+
 ### GitHub Actions
 
 This project is configured with GitHub Actions for continuous integration:
 
-- Runs tests on multiple Node.js versions (16.x, 18.x, 20.x)
+- Runs tests on Node.js 20.x
 - Lints code with ESLint
 - Generates test coverage reports
-- Uploads coverage to Codecov
+- Provides detailed test run information
 
 ## Contributing
 

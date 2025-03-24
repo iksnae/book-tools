@@ -32,6 +32,9 @@ for arg in "$@"; do
     --config=*)
       CONFIG_FILE="${arg#*=}"
       ;;
+    --debug)
+      set -x  # Turn on debug mode
+      ;;
     --help)
       echo "Usage: build.sh [directory] [options]"
       echo "Options:"
@@ -39,6 +42,7 @@ for arg in "$@"; do
       echo "  --languages=lang1,lang2   Only build these languages (comma-separated)"
       echo "  --skip=pdf,epub,mobi,html,docx Skip specified output formats (comma-separated)"
       echo "  --config=path             Use alternative config file (default: book.yaml)"
+      echo "  --debug                   Enable debug mode"
       echo "  --help                    Show this help message"
       exit 0
       ;;
@@ -50,9 +54,33 @@ echo "📄 Using config file: $CONFIG_FILE"
 echo "📁 Project root: $PROJECT_ROOT"
 
 # Debugging information
-echo "📂 Directory structure:"
-ls -la "$PROJECT_ROOT"
-ls -la "$PROJECT_ROOT/book" || echo "No book directory found"
+echo "📂 Directory listing:"
+ls -la "$PROJECT_ROOT" || true
+ls -la "$PROJECT_ROOT/book" || true
+ls -la "$PROJECT_ROOT/templates" || true
+
+# Ensure template directories exist
+mkdir -p "$PROJECT_ROOT/templates/html"
+mkdir -p "$PROJECT_ROOT/templates/pdf" 
+mkdir -p "$PROJECT_ROOT/templates/epub"
+mkdir -p "$PROJECT_ROOT/templates/docx"
+
+# Create minimal template files if they don't exist
+if [ ! -f "$PROJECT_ROOT/templates/html/style.css" ]; then
+  echo "Creating minimal CSS"
+  cat > "$PROJECT_ROOT/templates/html/style.css" << 'EOF'
+body { font-family: sans-serif; line-height: 1.5; max-width: 800px; margin: 0 auto; padding: 20px; }
+h1, h2, h3 { color: #333; }
+EOF
+fi
+
+if [ ! -f "$PROJECT_ROOT/templates/epub/style.css" ]; then
+  echo "Creating minimal EPUB CSS"
+  cat > "$PROJECT_ROOT/templates/epub/style.css" << 'EOF'
+body { font-family: sans-serif; line-height: 1.5; }
+h1, h2, h3 { color: #333; }
+EOF
+fi
 
 # Check if config file exists
 if [ ! -f "$CONFIG_FILE" ]; then
@@ -179,6 +207,13 @@ for language in $LANGUAGES_TO_BUILD; do
   fi
 done
 
+# Show the generated files
 echo ""
 echo "📦 Build process complete!"
+echo "📂 Generated files:"
+find "$PROJECT_ROOT/build" -type f -not -name "*.md" -not -name "*.tmp" | while read file; do
+  echo "  - $file"
+done
+
+echo ""
 echo "📂 Generated files are in the $PROJECT_ROOT/build/ directory"

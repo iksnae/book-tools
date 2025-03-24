@@ -8,6 +8,7 @@ const {
   runCommand,
   createPandocCommand
 } = require('./utils');
+const { validate } = require('./validate');
 
 /**
  * Build a book in the specified format(s) with extended configuration support
@@ -561,5 +562,6 @@ module.exports = {
   createChapter,
   checkChapter,
   getBookInfo,
-  cleanBuild
+  cleanBuild,
+  validate
 };

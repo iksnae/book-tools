@@ -5,9 +5,9 @@ const {
   loadBookConfig, 
   ensureDirectoryExists,
   buildFileNames,
-  runCommand,
-  createPandocCommand
+  runCommand
 } = require('./utils');
+const { buildFormat } = require('./buildFormat');
 
 /**
  * Build a book in the specified format(s) with extended configuration support
@@ -154,89 +154,6 @@ function findMarkdownFiles(dir) {
   
   // Sort by directory/filename
   return results.sort();
-}
-
-/**
- * Build a specific format using appropriate tools
- * 
- * @param {Object} config - Book configuration
- * @param {string} inputPath - Input markdown file path
- * @param {string} outputPath - Output file path
- * @param {string} format - Format to build (pdf, epub, html, mobi, docx)
- * @param {string} language - Language code
- * @param {string} projectRoot - Path to project root
- * @returns {Promise<boolean>} - Success status
- */
-async function buildFormat(config, inputPath, outputPath, format, language, projectRoot) {
-  // Define resource paths
-  const resourcePaths = [
-    '.', 
-    'book', 
-    `book/${language}`, 
-    'build', 
-    `book/${language}/images`, 
-    'book/images', 
-    'build/images', 
-    `build/${language}/images`
-  ].join(':');
-  
-  // For PDF, EPUB, HTML, and DOCX, use pandoc
-  if (format === 'pdf' || format === 'epub' || format === 'html' || format === 'docx') {
-    const command = createPandocCommand(config, inputPath, outputPath, format, language, resourcePaths);
-    
-    try {
-      const result = await runCommand(command);
-      if (result.stderr) {
-        console.warn(`Warnings during ${format} generation: ${result.stderr}`);
-      }
-      return true;
-    } catch (error) {
-      // Try with fallback settings if there's an error
-      if (config.formatSettings?.[format]?.fallback !== false) {
-        console.warn(`Error in ${format} generation, trying with fallback settings`);
-        try {
-          // Create a minimal pandoc command without custom settings
-          const formatType = format === 'pdf' ? 'latex' : format;
-          const fallbackCmd = `pandoc "${inputPath}" -o "${outputPath}" -t ${formatType} --metadata=title:"${config.title}" --metadata=author:"${config.author}" --metadata=lang:"${language}"`;
-          await runCommand(fallbackCmd);
-          console.warn(`Fallback ${format} generation succeeded`);
-          return true;
-        } catch (fallbackError) {
-          throw new Error(`Both primary and fallback ${format} generation failed: ${fallbackError.message}`);
-        }
-      } else {
-        throw error;
-      }
-    }
-  } else if (format === 'mobi') {
-    // For MOBI, we need EPUB first
-    const epubPath = outputPath.replace(/\.mobi$/, '.epub');
-    
-    if (!fs.existsSync(epubPath)) {
-      // Generate EPUB first
-      await buildFormat(config, inputPath, epubPath, 'epub', language, projectRoot);
-    }
-    
-    // Then convert EPUB to MOBI
-    try {
-      // First try kindlegen if available
-      try {
-        const kindlegenCmd = `kindlegen "${epubPath}" -o "${path.basename(outputPath)}"`;
-        await runCommand(kindlegenCmd);
-        return true;
-      } catch (kindleGenError) {
-        // If kindlegen fails, try calibre
-        console.warn('Kindlegen failed or not available, trying calibre');
-        const calibreCmd = `ebook-convert "${epubPath}" "${outputPath}"`;
-        await runCommand(calibreCmd);
-        return true;
-      }
-    } catch (error) {
-      throw new Error(`MOBI conversion failed: ${error.message}`);
-    }
-  } else {
-    throw new Error(`Unsupported format: ${format}`);
-  }
 }
 
 /**

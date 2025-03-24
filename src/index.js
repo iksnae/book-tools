@@ -162,7 +162,7 @@ function findMarkdownFiles(dir) {
  * @param {Object} config - Book configuration
  * @param {string} inputPath - Input markdown file path
  * @param {string} outputPath - Output file path
- * @param {string} format - Format to build (pdf, epub, html, mobi)
+ * @param {string} format - Format to build (pdf, epub, html, mobi, docx)
  * @param {string} language - Language code
  * @param {string} projectRoot - Path to project root
  * @returns {Promise<boolean>} - Success status
@@ -180,8 +180,8 @@ async function buildFormat(config, inputPath, outputPath, format, language, proj
     `build/${language}/images`
   ].join(':');
   
-  // For PDF, EPUB, and HTML, use pandoc
-  if (format === 'pdf' || format === 'epub' || format === 'html') {
+  // For PDF, EPUB, HTML, and DOCX, use pandoc
+  if (format === 'pdf' || format === 'epub' || format === 'html' || format === 'docx') {
     const command = createPandocCommand(config, inputPath, outputPath, format, language, resourcePaths);
     
     try {
@@ -196,7 +196,8 @@ async function buildFormat(config, inputPath, outputPath, format, language, proj
         console.warn(`Error in ${format} generation, trying with fallback settings`);
         try {
           // Create a minimal pandoc command without custom settings
-          const fallbackCmd = `pandoc "${inputPath}" -o "${outputPath}" -t ${format === 'pdf' ? 'latex' : format} --metadata=title:"${config.title}" --metadata=author:"${config.author}" --metadata=lang:"${language}"`;
+          const formatType = format === 'pdf' ? 'latex' : format;
+          const fallbackCmd = `pandoc "${inputPath}" -o "${outputPath}" -t ${formatType} --metadata=title:"${config.title}" --metadata=author:"${config.author}" --metadata=lang:"${language}"`;
           await runCommand(fallbackCmd);
           console.warn(`Fallback ${format} generation succeeded`);
           return true;
@@ -532,6 +533,21 @@ async function createEmergencyOutput(options) {
     
     fs.writeFileSync(fileNames.html, htmlContent);
     emergencyFiles.html = fileNames.html;
+
+    // Create a minimal DOCX file with emergency content if docx is requested
+    if (options.formats?.includes('docx')) {
+      try {
+        const fallbackDocxCmd = `pandoc -o "${fileNames.docx}" -t docx --metadata=title:"Emergency Output" --metadata=author:"Book Tools" << EOF
+# Emergency Output
+
+The build process encountered errors. This is an emergency output.
+EOF`;
+        await runCommand(fallbackDocxCmd, { shell: true });
+        emergencyFiles.docx = fileNames.docx;
+      } catch (e) {
+        // Ignore errors in emergency output generation
+      }
+    }
   } catch (e) {
     // Ignore errors during emergency output
   }

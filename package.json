@@ -1,6 +1,6 @@
 {
   "name": "book-tools",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A CLI and utility package for building books in multiple formats from markdown sources",
   "main": "src/index.js",
   "bin": {

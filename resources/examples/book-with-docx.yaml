@@ -1,0 +1,46 @@
+title: "Example Book with DOCX Support"
+subtitle: "A Guide to Multiple Formats"
+author: "Book Tools Team"
+publisher: "Khaos Studio"
+rights: "Copyright © 2025"
+description: "A sample book demonstrating DOCX format support."
+languages: [en]
+
+# Format configurations
+formats:
+  pdf: true
+  epub: true
+  mobi: true
+  html: true
+  docx: true
+
+# PDF Settings
+pdf:
+  enabled: true
+  fontsize: 12pt
+  papersize: letter
+  margin: 1in
+  lineheight: 1.5
+
+# EPUB Settings
+epub:
+  enabled: true
+  css: "resources/css/epub.css"
+  cover_image: "resources/images/cover.jpg"
+
+# MOBI Settings
+mobi:
+  enabled: true
+
+# HTML Settings
+html:
+  enabled: true
+  css: "resources/css/html.css"
+  template: "resources/templates/html/default.html"
+  
+# DOCX Settings
+docx:
+  enabled: true
+  reference_doc: "resources/templates/docx/reference.docx"  # Optional reference document
+  toc: true
+  toc_depth: 3

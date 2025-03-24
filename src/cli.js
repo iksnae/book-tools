@@ -4,6 +4,7 @@ const chalk = require('chalk');
 const ora = require('ora');
 const { 
   buildBook, 
+  buildBookWithRecovery,
   createChapter, 
   checkChapter, 
   getBookInfo, 
@@ -29,6 +30,8 @@ function configureCLI() {
     .option('--skip-epub', 'Skip EPUB generation')
     .option('--skip-mobi', 'Skip MOBI generation')
     .option('--skip-html', 'Skip HTML generation')
+    .option('--with-recovery', 'Enable enhanced error recovery')
+    .option('--verbose', 'Show verbose output')
     .action(async (options) => {
       const spinner = ora('Building book...').start();
       try {
@@ -38,11 +41,17 @@ function configureCLI() {
         if (!options.skipMobi) formats.push('mobi');
         if (!options.skipHtml) formats.push('html');
 
-        const result = await buildBook({
+        const buildOptions = {
           allLanguages: options.allLanguages,
           language: options.lang || 'en',
-          formats
-        });
+          formats,
+          verbose: options.verbose
+        };
+
+        // Use enhanced error recovery if requested
+        const result = options.withRecovery
+          ? await buildBookWithRecovery(buildOptions)
+          : await buildBook(buildOptions);
 
         if (result.success) {
           spinner.succeed(chalk.green('Book built successfully!'));
@@ -59,6 +68,14 @@ function configureCLI() {
           spinner.fail(chalk.red('Failed to build book'));
           if (result.error) {
             console.error(chalk.red(result.error.message));
+          }
+          
+          // If emergency files were created, log them
+          if (result.emergencyFiles) {
+            console.log(chalk.yellow('Emergency output files created:'));
+            Object.entries(result.emergencyFiles).forEach(([key, value]) => {
+              console.log(`${key}: ${value}`);
+            });
           }
         }
       } catch (error) {
@@ -97,23 +114,57 @@ function configureCLI() {
               { name: 'MOBI', value: 'mobi', checked: bookInfo.formats?.mobi },
               { name: 'HTML', value: 'html', checked: bookInfo.formats?.html }
             ]
+          },
+          {
+            type: 'confirm',
+            name: 'withRecovery',
+            message: 'Enable enhanced error recovery?',
+            default: true
+          },
+          {
+            type: 'confirm',
+            name: 'verbose',
+            message: 'Show verbose output?',
+            default: false
           }
         ]);
         
         const spinner = ora('Building book...').start();
         
-        const result = await buildBook({
+        const buildOptions = {
           language: answers.language,
-          formats: answers.formats
-        });
+          formats: answers.formats,
+          verbose: answers.verbose
+        };
+        
+        const result = answers.withRecovery
+          ? await buildBookWithRecovery(buildOptions)
+          : await buildBook(buildOptions);
         
         if (result.success) {
           spinner.succeed(chalk.green('Book built successfully!'));
           console.log(chalk.blue('Formats generated:'), answers.formats.join(', '));
+          
+          if (result.files) {
+            console.log(chalk.blue('Output files:'));
+            Object.entries(result.files).forEach(([key, value]) => {
+              if (key !== 'input') {
+                console.log(`${key}: ${value}`);
+              }
+            });
+          }
         } else {
           spinner.fail(chalk.red('Failed to build book'));
           if (result.error) {
             console.error(chalk.red(result.error.message));
+          }
+          
+          // If emergency files were created, log them
+          if (result.emergencyFiles) {
+            console.log(chalk.yellow('Emergency output files created:'));
+            Object.entries(result.emergencyFiles).forEach(([key, value]) => {
+              console.log(`${key}: ${value}`);
+            });
           }
         }
       } catch (error) {
@@ -265,6 +316,35 @@ function configureCLI() {
           console.log(`- ${format}: ${enabled ? '✅' : '❌'}`);
         });
         
+        // Display format-specific settings if present
+        if (info.formatSettings) {
+          console.log(chalk.blue('\nFormat Settings:'));
+          
+          // Show PDF settings
+          if (info.formatSettings.pdf) {
+            console.log(chalk.cyan('PDF Settings:'));
+            Object.entries(info.formatSettings.pdf).forEach(([key, value]) => {
+              console.log(`  - ${key}: ${value}`);
+            });
+          }
+          
+          // Show EPUB settings
+          if (info.formatSettings.epub) {
+            console.log(chalk.cyan('EPUB Settings:'));
+            Object.entries(info.formatSettings.epub).forEach(([key, value]) => {
+              console.log(`  - ${key}: ${value}`);
+            });
+          }
+          
+          // Show HTML settings
+          if (info.formatSettings.html) {
+            console.log(chalk.cyan('HTML Settings:'));
+            Object.entries(info.formatSettings.html).forEach(([key, value]) => {
+              console.log(`  - ${key}: ${value}`);
+            });
+          }
+        }
+        
         if (info.builtFiles && info.builtFiles.length > 0) {
           console.log(chalk.blue('\nBuilt files:'));
           info.builtFiles.forEach(file => {
@@ -297,6 +377,64 @@ function configureCLI() {
         }
       } catch (error) {
         console.error(chalk.red(`Error: ${error.message}`));
+      }
+    });
+
+  // GitHub Actions integration command
+  program
+    .command('github-action')
+    .description('Run as GitHub Action')
+    .option('--all-languages', 'Build for all configured languages')
+    .option('--create-release', 'Create GitHub release')
+    .option('--no-recovery', 'Disable enhanced error recovery')
+    .action(async (options) => {
+      try {
+        console.log(chalk.blue('Running as GitHub Action'));
+        
+        // Set CI environment variable for downstream scripts
+        process.env.CI = 'true';
+        
+        const spinner = ora('Building book...').start();
+        
+        const buildOptions = {
+          allLanguages: options.allLanguages,
+          formats: ['pdf', 'epub', 'mobi', 'html'],
+          // True by default unless --no-recovery is specified
+          withRecovery: options.recovery !== false
+        };
+        
+        // Use recovery mode by default in GitHub Actions
+        const result = buildOptions.withRecovery
+          ? await buildBookWithRecovery(buildOptions)
+          : await buildBook(buildOptions);
+        
+        if (result.success) {
+          spinner.succeed(chalk.green('Book built successfully!'));
+          
+          if (options.createRelease) {
+            console.log(chalk.blue('Creating GitHub Release...'));
+            // TODO: Implement GitHub release creation
+          }
+          
+          // List all generated files for the GitHub Action output
+          if (result.files) {
+            console.log(chalk.blue('Generated files:'));
+            Object.entries(result.files).forEach(([key, value]) => {
+              if (key !== 'input') {
+                console.log(`${key}=${value}`);
+              }
+            });
+          }
+        } else {
+          spinner.fail(chalk.red('Failed to build book'));
+          if (result.error) {
+            console.error(chalk.red(result.error.message));
+          }
+          process.exit(1);
+        }
+      } catch (error) {
+        console.error(chalk.red(`Error: ${error.message}`));
+        process.exit(1);
       }
     });
 

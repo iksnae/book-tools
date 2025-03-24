@@ -1,13 +1,13 @@
 # Book Tools
 
-A collection of tools for building books in multiple formats (PDF, EPUB, MOBI, HTML) from markdown files.
+A collection of tools for building books in multiple formats (PDF, EPUB, MOBI, HTML, DOCX) from markdown files.
 
 ## Overview
 
 This project provides shell scripts for building books from markdown files using Pandoc and other tools. The scripts handle:
 
 - Combining markdown files into a single document
-- Converting markdown to PDF, EPUB, MOBI, and HTML formats
+- Converting markdown to PDF, EPUB, MOBI, HTML, and DOCX formats
 - Supporting multiple languages
 - Building books with proper metadata
 
@@ -127,7 +127,7 @@ The build workflow automatically builds the book on pushes to any branch and pul
 
 - Building whenever content in the `book/` directory changes
 - Building when templates, styles, or build scripts are modified
-- Generating all formats (PDF, EPUB, HTML, MOBI)
+- Generating all formats (PDF, EPUB, HTML, MOBI, DOCX)
 - Uploading build artifacts for review
 - Creating detailed build summaries
 
@@ -222,6 +222,11 @@ html:
   enabled: true
   css: "resources/css/html.css"
   template: "resources/templates/html.template"
+  
+# DOCX Settings
+docx:
+  enabled: true
+  reference_doc: "resources/templates/docx/reference.docx"  # Optional reference document
 ```
 
 ## Testing

@@ -4,7 +4,7 @@ This guide provides instructions for testing and troubleshooting the book build 
 
 ## Quick Start
 
-Run the test script to verify that core formats are working:
+Run the test script to verify that all formats are working, including DOCX:
 
 ```bash
 chmod +x test-build.sh
@@ -14,7 +14,7 @@ chmod +x test-build.sh
 This will:
 1. Create necessary template directories and files if missing
 2. Check for required dependencies
-3. Build a sample book with PDF, EPUB, HTML, and MOBI formats
+3. Build a sample book with PDF, EPUB, HTML, MOBI, and DOCX formats
 4. Show detailed output of the build process
 
 ## Testing Specific Formats
@@ -30,6 +30,9 @@ To test specific formats only:
 
 # Test HTML only
 ./src/scripts/build.sh --skip=pdf,epub,mobi,docx
+
+# Test DOCX only
+./src/scripts/build.sh --skip=pdf,epub,html,mobi
 ```
 
 ## Dependencies
@@ -38,6 +41,27 @@ The book build process requires the following dependencies:
 
 - **pandoc**: Required for PDF, EPUB, HTML, and DOCX formats
 - **kindlegen** or **ebook-convert** (from Calibre): Required for MOBI format
+
+## DOCX-Specific Setup
+
+For DOCX output, you can create a custom reference document:
+
+1. Create a default reference document:
+   ```bash
+   chmod +x templates/docx/create_reference.sh
+   ./templates/docx/create_reference.sh
+   ```
+
+2. Or use a custom Word template:
+   - Create a Word document with your desired styles
+   - Save it as `templates/docx/reference.docx`
+   - Update your `book.yaml` to point to this file:
+     ```yaml
+     docx:
+       reference_doc: "templates/docx/reference.docx"
+       toc: true
+       toc_depth: 3
+     ```
 
 ## Troubleshooting
 
@@ -59,6 +83,7 @@ Ensure template files exist and are properly formatted:
 ls -la templates/pdf/
 ls -la templates/html/
 ls -la templates/epub/
+ls -la templates/docx/
 ```
 
 ### 3. Check Book Content
@@ -84,6 +109,7 @@ Ensure all scripts are executable:
 ```bash
 chmod +x src/scripts/*.sh
 chmod +x test-build.sh
+chmod +x templates/docx/create_reference.sh
 ```
 
 ## Advanced Testing
@@ -96,31 +122,27 @@ To test in a controlled environment:
 docker run -it --rm -v "$PWD:/app" -w /app iksnae/book-builder ./test-build.sh
 ```
 
-### Testing DOCX Format (Experimental)
+## DOCX Format Tips
 
-DOCX support is currently experimental. To test it:
+When working with DOCX output:
 
-1. Enable DOCX output in `book.yaml`:
-   ```yaml
-   outputs:
-     # ...other formats...
-     docx: true
-   ```
+1. **Custom Styles**: You can create a Word document with your preferred styles (headings, paragraphs, etc.) and save it as a reference document.
 
-2. Create DOCX template directory:
-   ```bash
-   mkdir -p templates/docx
-   ```
+2. **Style Mapping**: 
+   - `# Heading 1` → 'Heading 1' style
+   - `## Heading 2` → 'Heading 2' style
+   - Regular paragraph → 'Normal' style
+   - Code blocks → 'Source Code' style
+   - Blockquotes → 'Quote' style
 
-3. Create a reference document (optional):
-   ```bash
-   pandoc -o templates/docx/reference.docx --print-default-data-file reference.docx
-   ```
-
-4. Build with DOCX enabled:
-   ```bash
-   ./src/scripts/build.sh
-   ```
+3. **Troubleshooting DOCX Issues**:
+   - If DOCX generation fails but other formats work, check if pandoc supports DOCX output:
+     ```bash
+     pandoc --list-output-formats | grep docx
+     ```
+   - Ensure you have a valid reference document
+   - Try using a simpler reference document
+   - Check pandoc version (newer versions have better DOCX support)
 
 ## Common Issues
 
@@ -128,10 +150,4 @@ DOCX support is currently experimental. To test it:
 - **LaTeX Errors in PDF Generation**: If you get LaTeX errors when generating PDFs, check for special characters in your Markdown files.
 - **Empty Output Files**: Make sure your Markdown files have valid content and are properly structured.
 - **Path Resolution Issues**: Ensure paths in `book.yaml` match your actual directory structure.
-
-## Next Steps
-
-1. First focus on getting PDF, EPUB, and HTML formats working
-2. Add more complex content and test with it
-3. Test with multiple languages if needed
-4. Only then enable and test DOCX format
+- **DOCX Style Issues**: If your DOCX output doesn't match your expectations, you probably need to customize the reference document.

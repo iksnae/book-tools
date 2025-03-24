@@ -11,6 +11,11 @@ const {
   cleanBuild 
 } = require('./index');
 
+// Import new CLI commands
+const { configureGenerateCommand } = require('./cli-commands/generate');
+const { configureInitCommand } = require('./cli-commands/init');
+const { configureValidateCommand } = require('./cli-commands/validate');
+
 /**
  * Configure the Commander.js CLI
  */
@@ -18,7 +23,7 @@ function configureCLI() {
   program
     .name('book')
     .description('Book Tools CLI for building books from markdown sources')
-    .version('0.1.0');
+    .version('0.2.0');
 
   // Build command
   program
@@ -85,6 +90,15 @@ function configureCLI() {
         console.error(chalk.red(error.message));
       }
     });
+
+  // Add formats command - allows generating a specific format
+  configureGenerateCommand(program);
+  
+  // Add init command - project initialization
+  configureInitCommand(program);
+  
+  // Add validate command - configuration validation
+  configureValidateCommand(program);
 
   // Interactive command
   program
@@ -389,6 +403,34 @@ function configureCLI() {
       } catch (error) {
         console.error(chalk.red(`Error: ${error.message}`));
       }
+    });
+
+  // Watch command placeholder - will be implemented in future
+  program
+    .command('watch')
+    .description('Watch for changes and rebuild automatically')
+    .option('-l, --lang <language>', 'Specify language to watch (default: "en")')
+    .option('--live-preview', 'Enable live preview')
+    .action(async (options) => {
+      console.log(chalk.yellow('The watch command will be implemented in the next release'));
+      console.log(chalk.blue('It will support:'));
+      console.log('- Automatic rebuilding when files change');
+      console.log('- Live preview in your browser');
+      console.log('- Format-specific watching');
+    });
+
+  // Serve command placeholder - will be implemented in future
+  program
+    .command('serve')
+    .description('Serve built files for preview')
+    .option('-p, --port <port>', 'Port to serve on (default: 8080)')
+    .option('-l, --lang <language>', 'Specify language to serve (default: "en")')
+    .action(async (options) => {
+      console.log(chalk.yellow('The serve command will be implemented in the next release'));
+      console.log(chalk.blue('It will support:'));
+      console.log('- Serving HTML files for preview');
+      console.log('- Displaying book structure');
+      console.log('- Links to download other formats');
     });
 
   // GitHub Actions integration command

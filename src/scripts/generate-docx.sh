@@ -25,16 +25,15 @@ mkdir -p "$(dirname "$OUTPUT_PATH")"
 # Look for a reference document
 REFERENCE_DOC=""
 if [ -f "$PROJECT_ROOT/templates/docx/reference.docx" ]; then
-  REFERENCE_DOC="--reference-doc='$PROJECT_ROOT/templates/docx/reference.docx'"
+  REFERENCE_DOC="--reference-doc=$PROJECT_ROOT/templates/docx/reference.docx"
   echo "Using reference document: $PROJECT_ROOT/templates/docx/reference.docx"
 elif [ -f "$PROJECT_ROOT/resources/templates/docx/reference.docx" ]; then
-  REFERENCE_DOC="--reference-doc='$PROJECT_ROOT/resources/templates/docx/reference.docx'"
+  REFERENCE_DOC="--reference-doc=$PROJECT_ROOT/resources/templates/docx/reference.docx"
   echo "Using reference document: $PROJECT_ROOT/resources/templates/docx/reference.docx" 
 fi
 
 # Base arguments
 PANDOC_ARGS="-s -f markdown -t docx"
-PANDOC_ARGS="$PANDOC_ARGS --markdown-headings=atx"
 PANDOC_ARGS="$PANDOC_ARGS --table-of-contents"
 PANDOC_ARGS="$PANDOC_ARGS --toc-depth=3"
 PANDOC_ARGS="$PANDOC_ARGS --metadata=title:\"$BOOK_TITLE\""

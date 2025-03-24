@@ -7,7 +7,8 @@ const {
   createChapter, 
   checkChapter, 
   getBookInfo, 
-  cleanBuild 
+  cleanBuild,
+  validateConfig
 } = require('./index');
 
 /**
@@ -29,6 +30,7 @@ function configureCLI() {
     .option('--skip-epub', 'Skip EPUB generation')
     .option('--skip-mobi', 'Skip MOBI generation')
     .option('--skip-html', 'Skip HTML generation')
+    .option('--legacy-scripts', 'Use legacy build scripts', true)
     .action(async (options) => {
       const spinner = ora('Building book...').start();
       try {
@@ -38,10 +40,31 @@ function configureCLI() {
         if (!options.skipMobi) formats.push('mobi');
         if (!options.skipHtml) formats.push('html');
 
+        // First validate the configuration
+        const validation = await validateConfig();
+        if (!validation.success) {
+          spinner.fail(chalk.red('Configuration validation failed'));
+          validation.errors.forEach(error => {
+            console.error(chalk.red(`Error: ${error}`));
+          });
+          return;
+        }
+
+        if (validation.warnings.length > 0) {
+          spinner.warn(chalk.yellow('Configuration warnings:'));
+          validation.warnings.forEach(warning => {
+            console.warn(chalk.yellow(`Warning: ${warning}`));
+          });
+        }
+
+        spinner.text = 'Building book...';
+        spinner.start();
+
         const result = await buildBook({
           allLanguages: options.allLanguages,
           language: options.lang || 'en',
-          formats
+          formats,
+          useLegacyScripts: options.legacyScripts
         });
 
         if (result.success) {
@@ -97,19 +120,127 @@ function configureCLI() {
               { name: 'MOBI', value: 'mobi', checked: bookInfo.formats?.mobi },
               { name: 'HTML', value: 'html', checked: bookInfo.formats?.html }
             ]
+          },
+          {
+            type: 'confirm',
+            name: 'configureSettings',
+            message: 'Would you like to configure format-specific settings?',
+            default: false
           }
         ]);
+        
+        let formatSettings = bookInfo.formatSettings || {};
+        
+        // If user wants to configure format settings
+        if (answers.configureSettings) {
+          for (const format of answers.formats) {
+            console.log(chalk.blue(`\nConfiguring ${format.toUpperCase()} settings:`));
+            
+            // Get current settings for this format
+            const currentSettings = formatSettings[format] || {};
+            
+            if (format === 'pdf') {
+              const pdfAnswers = await inquirer.prompt([
+                {
+                  type: 'list',
+                  name: 'paperSize',
+                  message: 'Paper size:',
+                  choices: ['letter', 'a4', 'a5', 'b5'],
+                  default: currentSettings.paperSize || 'letter'
+                },
+                {
+                  type: 'input',
+                  name: 'fontSize',
+                  message: 'Font size (e.g., 11pt):',
+                  default: currentSettings.fontSize || '11pt'
+                },
+                {
+                  type: 'input',
+                  name: 'lineHeight',
+                  message: 'Line height (e.g., 1.5):',
+                  default: currentSettings.lineHeight || '1.5'
+                }
+              ]);
+              
+              formatSettings.pdf = {
+                ...currentSettings,
+                ...pdfAnswers
+              };
+            } 
+            else if (format === 'epub') {
+              const epubAnswers = await inquirer.prompt([
+                {
+                  type: 'input',
+                  name: 'coverImage',
+                  message: 'Cover image path:',
+                  default: currentSettings.coverImage || 'book/images/cover.png'
+                },
+                {
+                  type: 'input',
+                  name: 'tocDepth',
+                  message: 'Table of contents depth:',
+                  default: currentSettings.tocDepth || 3,
+                  validate: input => !isNaN(input) ? true : 'Please enter a number'
+                }
+              ]);
+              
+              formatSettings.epub = {
+                ...currentSettings,
+                ...epubAnswers,
+                tocDepth: parseInt(epubAnswers.tocDepth)
+              };
+            }
+            else if (format === 'html') {
+              const htmlAnswers = await inquirer.prompt([
+                {
+                  type: 'confirm',
+                  name: 'toc',
+                  message: 'Include table of contents?',
+                  default: currentSettings.toc !== false
+                },
+                {
+                  type: 'input',
+                  name: 'tocDepth',
+                  message: 'Table of contents depth:',
+                  default: currentSettings.tocDepth || 3,
+                  validate: input => !isNaN(input) ? true : 'Please enter a number'
+                },
+                {
+                  type: 'confirm',
+                  name: 'selfContained',
+                  message: 'Create self-contained HTML?',
+                  default: currentSettings.selfContained !== false
+                }
+              ]);
+              
+              formatSettings.html = {
+                ...currentSettings,
+                ...htmlAnswers,
+                tocDepth: parseInt(htmlAnswers.tocDepth)
+              };
+            }
+          }
+        }
         
         const spinner = ora('Building book...').start();
         
         const result = await buildBook({
           language: answers.language,
-          formats: answers.formats
+          formats: answers.formats,
+          formatSettings: answers.configureSettings ? formatSettings : undefined
         });
         
         if (result.success) {
           spinner.succeed(chalk.green('Book built successfully!'));
           console.log(chalk.blue('Formats generated:'), answers.formats.join(', '));
+          if (result.files) {
+            console.log(chalk.blue('Output files:'));
+            Object.entries(result.files).forEach(([key, value]) => {
+              if (key !== 'input') {
+                console.log(`${key}: ${value}`);
+              }
+            });
+          }
         } else {
           spinner.fail(chalk.red('Failed to build book'));
           if (result.error) {
@@ -247,7 +378,8 @@ function configureCLI() {
   program
     .command('info')
     .description('Display book information')
-    .action(async () => {
+    .option('-v, --verbose', 'Show detailed information', false)
+    .action(async (options) => {
       try {
         const spinner = ora('Loading book information...').start();
         
@@ -260,10 +392,36 @@ function configureCLI() {
         console.log(chalk.blue('File prefix:'), info.filePrefix);
         console.log(chalk.blue('Languages:'), info.languages.join(', '));
         
-        console.log(chalk.blue('Available formats:'));
+        console.log(chalk.blue('\nAvailable formats:'));
         Object.entries(info.formats || {}).forEach(([format, enabled]) => {
           console.log(`- ${format}: ${enabled ? '✅' : '❌'}`);
         });
+        
+        // Show format-specific settings if verbose
+        if (options.verbose && info.formatSettings) {
+          console.log(chalk.blue('\nFormat settings:'));
+          
+          if (info.formatSettings.pdf) {
+            console.log(chalk.cyan('\nPDF settings:'));
+            Object.entries(info.formatSettings.pdf).forEach(([key, value]) => {
+              console.log(`- ${key}: ${value}`);
+            });
+          }
+          
+          if (info.formatSettings.epub) {
+            console.log(chalk.cyan('\nEPUB settings:'));
+            Object.entries(info.formatSettings.epub).forEach(([key, value]) => {
+              console.log(`- ${key}: ${value}`);
+            });
+          }
+          
+          if (info.formatSettings.html) {
+            console.log(chalk.cyan('\nHTML settings:'));
+            Object.entries(info.formatSettings.html).forEach(([key, value]) => {
+              console.log(`- ${key}: ${value}`);
+            });
+          }
+        }
         
         if (info.builtFiles && info.builtFiles.length > 0) {
           console.log(chalk.blue('\nBuilt files:'));
@@ -293,6 +451,62 @@ function configureCLI() {
           spinner.fail(chalk.red('Failed to clean build artifacts'));
           if (result.error) {
             console.error(chalk.red(result.error.message));
+          }
+        }
+      } catch (error) {
+        console.error(chalk.red(`Error: ${error.message}`));
+      }
+    });
+
+  // Validate command
+  program
+    .command('validate')
+    .description('Validate book configuration')
+    .action(async () => {
+      try {
+        const spinner = ora('Validating configuration...').start();
+        
+        const result = await validateConfig();
+        
+        if (result.success) {
+          spinner.succeed(chalk.green('Configuration is valid!'));
+          
+          if (result.warnings.length > 0) {
+            console.log(chalk.yellow('\nWarnings:'));
+            result.warnings.forEach(warning => {
+              console.log(chalk.yellow(`- ${warning}`));
+            });
+          } else {
+            console.log(chalk.green('No warnings or errors found.'));
+          }
+          
+          console.log(chalk.blue('\nCurrent configuration:'));
+          console.log(`Title: ${result.config.title}`);
+          console.log(`Author: ${result.config.author}`);
+          console.log(`Languages: ${result.config.languages.join(', ')}`);
+          console.log(`Output formats: ${Object.entries(result.config.formats)
+            .filter(([_, enabled]) => enabled)
+            .map(([format]) => format)
+            .join(', ')}`);
+        } else {
+          spinner.fail(chalk.red('Configuration validation failed!'));
+          
+          if (result.errors && result.errors.length > 0) {
+            console.log(chalk.red('\nErrors:'));
+            result.errors.forEach(error => {
+              console.log(chalk.red(`- ${error}`));
+            });
+          }
+          
+          if (result.warnings && result.warnings.length > 0) {
+            console.log(chalk.yellow('\nWarnings:'));
+            result.warnings.forEach(warning => {
+              console.log(chalk.yellow(`- ${warning}`));
+            });
+          }
+          
+          if (result.error) {
+            console.error(chalk.red(`\nError: ${result.error.message}`));
           }
         }
       } catch (error) {

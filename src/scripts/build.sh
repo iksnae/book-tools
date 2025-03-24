@@ -37,7 +37,7 @@ for arg in "$@"; do
       echo "Options:"
       echo "  [directory]               Path to the book project (default: current working directory)"
       echo "  --languages=lang1,lang2   Only build these languages (comma-separated)"
-      echo "  --skip=pdf,epub,mobi,html Skip specified output formats (comma-separated)"
+      echo "  --skip=pdf,epub,mobi,html,docx Skip specified output formats (comma-separated)"
       echo "  --config=path             Use alternative config file (default: book.yaml)"
       echo "  --help                    Show this help message"
       exit 0
@@ -102,12 +102,24 @@ echo "🔨 Building languages: $LANGUAGES_TO_BUILD"
 mkdir -p "$PROJECT_ROOT/build"
 echo "🧹 Creating build directory..."
 
-# Prepare build arguments based on what to skip
-BUILD_ARGS=""
+# Parse skip formats
+SKIP_PDF=false
+SKIP_EPUB=false
+SKIP_HTML=false
+SKIP_MOBI=false
+SKIP_DOCX=false
+
 if [ -n "$SKIP_FORMATS" ]; then
   IFS=',' read -ra SKIP_ARRAY <<< "$SKIP_FORMATS"
   for format in "${SKIP_ARRAY[@]}"; do
-    BUILD_ARGS+=" --skip-$format"
+    case "$format" in
+      pdf) SKIP_PDF=true ;;
+      epub) SKIP_EPUB=true ;;
+      html) SKIP_HTML=true ;;
+      mobi) SKIP_MOBI=true ;;
+      docx) SKIP_DOCX=true ;;
+      *) echo "⚠️ Warning: Unknown format to skip: $format" ;;
+    esac
   done
 fi
 
@@ -123,7 +135,7 @@ for language in $LANGUAGES_TO_BUILD; do
   fi
   
   # Build this language
-  "$SCRIPTS_DIR/build-language.sh" "$language" "$CONFIG_FILE" "$PROJECT_ROOT"
+  "$SCRIPTS_DIR/build-language.sh" "$language" "$CONFIG_FILE" "$PROJECT_ROOT" "$SKIP_PDF" "$SKIP_EPUB" "$SKIP_HTML" "$SKIP_MOBI" "$SKIP_DOCX"
   
   # Check the result
   if [ $? -eq 0 ]; then

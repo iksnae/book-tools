@@ -64,7 +64,8 @@ function buildFileNames(language, projectRoot) {
     pdf: path.join(buildDir, `${filePrefix}.pdf`),
     epub: path.join(buildDir, `${filePrefix}.epub`),
     mobi: path.join(buildDir, `${filePrefix}.mobi`),
-    html: path.join(buildDir, `${filePrefix}.html`)
+    html: path.join(buildDir, `${filePrefix}.html`),
+    docx: path.join(buildDir, `${filePrefix}.docx`)
   };
 }
 
@@ -127,7 +128,7 @@ function runCommand(command, options = {}) {
  * @param {Object} config - Book configuration
  * @param {string} inputPath - Path to input markdown file
  * @param {string} outputPath - Path to output file
- * @param {string} format - Output format (pdf, epub, html)
+ * @param {string} format - Output format (pdf, epub, html, docx)
  * @param {string} language - Language code
  * @param {string} resourcePaths - Search paths for resources
  * @returns {string} - Pandoc command

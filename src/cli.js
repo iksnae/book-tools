@@ -30,6 +30,7 @@ function configureCLI() {
     .option('--skip-epub', 'Skip EPUB generation')
     .option('--skip-mobi', 'Skip MOBI generation')
     .option('--skip-html', 'Skip HTML generation')
+    .option('--skip-docx', 'Skip DOCX generation')
     .option('--with-recovery', 'Enable enhanced error recovery')
     .option('--verbose', 'Show verbose output')
     .action(async (options) => {
@@ -40,6 +41,7 @@ function configureCLI() {
         if (!options.skipEpub) formats.push('epub');
         if (!options.skipMobi) formats.push('mobi');
         if (!options.skipHtml) formats.push('html');
+        if (!options.skipDocx) formats.push('docx');
 
         const buildOptions = {
           allLanguages: options.allLanguages,
@@ -112,7 +114,8 @@ function configureCLI() {
               { name: 'PDF', value: 'pdf', checked: bookInfo.formats?.pdf },
               { name: 'EPUB', value: 'epub', checked: bookInfo.formats?.epub },
               { name: 'MOBI', value: 'mobi', checked: bookInfo.formats?.mobi },
-              { name: 'HTML', value: 'html', checked: bookInfo.formats?.html }
+              { name: 'HTML', value: 'html', checked: bookInfo.formats?.html },
+              { name: 'DOCX', value: 'docx', checked: bookInfo.formats?.docx }
             ]
           },
           {
@@ -343,6 +346,14 @@ function configureCLI() {
               console.log(`  - ${key}: ${value}`);
             });
           }
+          
+          // Show DOCX settings
+          if (info.formatSettings.docx) {
+            console.log(chalk.cyan('DOCX Settings:'));
+            Object.entries(info.formatSettings.docx).forEach(([key, value]) => {
+              console.log(`  - ${key}: ${value}`);
+            });
+          }
         }
         
         if (info.builtFiles && info.builtFiles.length > 0) {
@@ -398,7 +409,7 @@ function configureCLI() {
         
         const buildOptions = {
           allLanguages: options.allLanguages,
-          formats: ['pdf', 'epub', 'mobi', 'html'],
+          formats: ['pdf', 'epub', 'mobi', 'html', 'docx'],
           // True by default unless --no-recovery is specified
           withRecovery: options.recovery !== false
         };

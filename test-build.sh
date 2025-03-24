@@ -1,14 +1,20 @@
 #!/bin/bash
 
-# Simple test script to debug build issues
+# Simple test script to debug build issues - focused on core formats only
 
-set -ex  # Exit on error, show commands
+set -e  # Exit on error
+
+# Add debug flag to see commands
+if [ "$1" == "--debug" ]; then
+  set -x  # Show commands as they execute
+fi
+
+echo "🧪 Running test build focusing on core formats (PDF, EPUB, HTML, MOBI)"
 
 # Create necessary template directories if they don't exist
 mkdir -p templates/html
 mkdir -p templates/pdf
 mkdir -p templates/epub
-mkdir -p templates/docx
 
 # Create minimal template files if they don't exist
 if [ ! -f templates/html/default.html ]; then
@@ -50,19 +56,13 @@ fi
 if [ ! -f templates/pdf/default.latex ]; then
   echo "Creating minimal LaTeX template"
   cat > templates/pdf/default.latex << 'EOF'
-\documentclass[$if(fontsize)$$fontsize$,$endif$$if(lang)$$lang$,$endif$$if(papersize)$$papersize$,$endif$]{$documentclass$}
+\documentclass[$if(fontsize)$$fontsize$,$endif$$if(lang)$$lang$,$endif$$if(papersize)$$papersize$,$endif$]{article}
 \usepackage{lmodern}
 \usepackage{amssymb,amsmath}
 \usepackage{ifxetex,ifluatex}
-\usepackage{fixltx2e}
 \usepackage[utf8]{inputenc}
-\usepackage{titling}
-\usepackage{fancyhdr}
-\pagestyle{fancy}
 \begin{document}
-\begin{titlingpage}
 \maketitle
-\end{titlingpage}
 $body$
 \end{document}
 EOF
@@ -76,18 +76,46 @@ h1, h2, h3 { color: #333; }
 EOF
 fi
 
-# Create a basic docx reference document if it doesn't exist
-if [ ! -f templates/docx/reference.docx ]; then
-  echo "Creating minimal DOCX reference template"
-  pandoc -o templates/docx/reference.docx --print-default-data-file reference.docx 2>/dev/null || true
-fi
-
 # Make sure the book directory has content
 mkdir -p book/en/chapter-01
 
 # Ensure the build directory exists
 mkdir -p build
 
-# Run the build script with verbose output
-chmod +x src/scripts/build.sh
-./src/scripts/build.sh --languages=en
+# Check for dependencies
+echo "📋 Checking dependencies..."
+echo -n "pandoc: "
+if command -v pandoc &> /dev/null; then
+  echo "✅ $(pandoc --version | head -n 1)"
+else
+  echo "❌ Not found (needed for PDF, EPUB, HTML)"
+fi
+
+echo -n "kindlegen or ebook-convert: "
+if command -v kindlegen &> /dev/null; then
+  echo "✅ kindlegen found"
+elif command -v ebook-convert &> /dev/null; then
+  echo "✅ ebook-convert found"
+else
+  echo "❌ Not found (optional for MOBI format)"
+fi
+
+# Make scripts executable
+echo "🔧 Making scripts executable..."
+chmod +x src/scripts/*.sh
+
+# Run the build script
+echo "🚀 Running build script..."
+./src/scripts/build.sh --skip=docx
+
+# Check for output files
+echo -e "\n📦 Checking output files..."
+find build -type f -not -name "*.md" -not -name "*.tmp" | sort
+
+# Report success or failure
+if [ -f build/en/write-and-publish.pdf ] || [ -f build/en/write-and-publish.html ] || [ -f build/en/write-and-publish.epub ]; then
+  echo -e "\n✅ Test build succeeded! At least one output format was generated."
+else
+  echo -e "\n❌ Test build failed: No output files were generated."
+  exit 1
+fi

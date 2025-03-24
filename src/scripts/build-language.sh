@@ -28,7 +28,24 @@ mkdir -p "build/$LANG"
 if [ "$VERBOSE" = true ]; then
     echo "📝 Copying markdown files..."
 fi
-cp -r "book/$LANG"/*.md "build/$LANG/" 2>/dev/null || true
+
+# First check if there are any markdown files
+MD_FILES=$(find "book/$LANG" -maxdepth 1 -name "*.md" | wc -l)
+if [ "$MD_FILES" -eq 0 ]; then
+    echo "❌ Error: No markdown files found in book/$LANG"
+    exit 1
+fi
+
+# Copy the files
+cp "book/$LANG"/*.md "build/$LANG/" || {
+    echo "❌ Error copying markdown files"
+    exit 1
+}
+
+if [ "$VERBOSE" = true ]; then
+    echo "✅ Found and copied $MD_FILES markdown files"
+    ls -l "build/$LANG"/*.md
+fi
 
 # Build HTML version
 if [ "$SKIP_HTML" != true ]; then
@@ -43,7 +60,10 @@ if [ "$SKIP_HTML" != true ]; then
         --toc \
         --toc-depth=3 \
         --resource-path="build/$LANG:build/images:build/$LANG/images" \
-        --css=styles/book.css
+        --css=styles/book.css || {
+            echo "❌ Error building HTML version"
+            exit 1
+        }
 fi
 
 # Build PDF version
@@ -58,7 +78,10 @@ if [ "$SKIP_PDF" != true ]; then
         --toc \
         --toc-depth=3 \
         --resource-path="build/$LANG:build/images:build/$LANG/images" \
-        --pdf-engine=xelatex
+        --pdf-engine=xelatex || {
+            echo "❌ Error building PDF version"
+            exit 1
+        }
 fi
 
 # Build EPUB version
@@ -73,7 +96,10 @@ if [ "$SKIP_EPUB" != true ]; then
         --toc \
         --toc-depth=3 \
         --resource-path="build/$LANG:build/images:build/$LANG/images" \
-        --epub-cover-image="build/images/cover.jpg"
+        --epub-cover-image="build/images/cover.jpg" || {
+            echo "❌ Error building EPUB version"
+            exit 1
+        }
 fi
 
 # Build MOBI version if not skipped and calibre is available
@@ -82,7 +108,9 @@ if [ "$SKIP_MOBI" != true ] && command -v ebook-convert >/dev/null; then
         echo "📱 Building MOBI version..."
     fi
     ebook-convert "build/$LANG/$BOOK_TITLE-$LANG.epub" \
-        "build/$LANG/$BOOK_TITLE-$LANG.mobi"
+        "build/$LANG/$BOOK_TITLE-$LANG.mobi" || {
+            echo "⚠️ Warning: Error building MOBI version"
+        }
 elif [ "$SKIP_MOBI" != true ]; then
     echo "⚠️ Skipping MOBI: calibre not installed"
 fi

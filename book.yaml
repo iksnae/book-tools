@@ -1,69 +1,16 @@
-# Book Template Configuration File
-# This file controls settings for your book build process
+title: Sample Book
+author: Test Author
+language: en
+version: 1.0.0
 
-# Basic Information
-title: "Write and Publish Your First Book"
-subtitle: "A Complete Guide to Using the Book Template System"
-author: "Your Name"
-publisher: "Publisher Name"
-year: "2025"
-language: "en"  # Main language code (ISO 639-1)
-
-# File naming
-# This will be used to name the output files (e.g., my-book.pdf)
-file_prefix: "write-and-publish"
-
-# Output formats
-# Set to 'true' to generate, 'false' to skip
-outputs:
-  pdf: true
-  epub: true
-  mobi: true
-  html: true
-  docx: true  # Now enabled
-
-# Languages to build
-# Add multiple language codes to build translations
+# Build configuration
 languages:
-  - "en"  # English
-  # - "es"  # Spanish
-  # - "fr"  # French
+  - en
+  - es
 
-# PDF settings
-pdf:
-  paper_size: "letter"  # letter, a4, etc.
-  margin_top: "1in"
-  margin_right: "1in"
-  margin_bottom: "1in"
-  margin_left: "1in"
-  font_size: "11pt"
-  line_height: "1.5"
-  template: "templates/pdf/default.latex"  # Custom LaTeX template (optional)
-
-# EPUB settings
-epub:
-  cover_image: "book/images/cover.png"  # Path to cover image
-  css: "templates/epub/style.css"  # Custom CSS (optional)
-  toc_depth: 3  # Table of contents depth
-
-# HTML settings
-html:
-  template: "templates/html/default.html"  # Custom HTML template (optional)
-  css: "templates/html/style.css"  # Custom CSS (optional)
-  toc: true  # Include table of contents
-  toc_depth: 3  # Table of contents depth
-  section_divs: true  # Put sections in div elements
-  self_contained: true  # Create a standalone HTML file with no external dependencies
-
-# DOCX settings
-docx:
-  reference_doc: "templates/docx/reference.docx"  # Reference DOCX template (optional)
-  toc: true  # Include table of contents
-  toc_depth: 3  # Table of contents depth
-
-# Metadata
-metadata:
-  rights: "Copyright © 2025 Your Name. All rights reserved."
-  description: "A comprehensive guide to writing and publishing books using Markdown and the Book Template system."
-  subject: "Writing, Publishing, Technology"
-  keywords: "writing, publishing, markdown, digital books, self-publishing"
+# Output configuration
+formats:
+  - html
+  - pdf
+  - epub
+  - mobi

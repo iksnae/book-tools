@@ -5,7 +5,9 @@ const {
   loadConfig, 
   ensureDirectoryExists,
   buildFileNames,
-  runScript
+  runScript,
+  getFormatSettings,
+  writeLegacyConfig
 } = require('./utils');
 
 /**
@@ -15,6 +17,7 @@ const {
  * @param {boolean} [options.allLanguages=false] - Whether to build for all languages
  * @param {string} [options.language='en'] - Language to build for
  * @param {Array<string>} [options.formats=['pdf']] - Formats to build
+ * @param {boolean} [options.useLegacyScripts=true] - Whether to use legacy build scripts
  * @returns {Promise<Object>} - Build result
  */
 async function buildBook(options = {}) {
@@ -22,11 +25,24 @@ async function buildBook(options = {}) {
     const projectRoot = findProjectRoot();
     const config = loadConfig(projectRoot);
     
+    // Determine which languages to build
     const languages = options.allLanguages 
       ? config.languages 
       : [options.language || 'en'];
     
-    const formats = options.formats || ['pdf'];
+    // Determine which formats to build
+    const requestedFormats = options.formats || ['pdf'];
+    const formats = requestedFormats.filter(format => {
+      // Check if the format is enabled in the configuration
+      return config.formats && config.formats[format] !== false;
+    });
+    
+    if (formats.length === 0) {
+      return {
+        success: false,
+        error: new Error('No enabled formats requested for build')
+      };
+    }
     
     const results = [];
     
@@ -37,6 +53,12 @@ async function buildBook(options = {}) {
       const buildDir = path.dirname(fileNames.input);
       ensureDirectoryExists(buildDir);
       
+      // Create a temporary configuration file for legacy scripts
+      const tempConfigPath = path.join(buildDir, 'book-config.yaml');
+      if (options.useLegacyScripts !== false) {
+        writeLegacyConfig(config, tempConfigPath);
+      }
+      
       const buildResult = {
         success: true,
         language,
@@ -46,15 +68,26 @@ async function buildBook(options = {}) {
         }
       };
       
-      // Add the requested format file paths
+      // Perform the actual build (to be implemented with proper scripts)
+      // For now, this just sets up the file paths
       for (const format of formats) {
         if (fileNames[format]) {
+          // Get the format-specific settings
+          const formatSettings = getFormatSettings(config, format);
+          
+          // TODO: Implement actual build logic for each format
+          // This would involve running scripts or using libraries
+          // For now, we just set up the file path
+          
           buildResult.files[format] = fileNames[format];
         }
       }
       
       results.push(buildResult);
     }
+    
+    // Clean up temporary files
+    // TODO: Implement cleanup
     
     // Return the first result for simplicity if only building one language
     return languages.length === 1 ? results[0] : { success: true, results };
@@ -78,9 +111,18 @@ async function buildBook(options = {}) {
 async function createChapter(options) {
   try {
     const projectRoot = findProjectRoot();
+    const config = loadConfig(projectRoot);
     const language = options.language || 'en';
     const chapterNumber = options.chapterNumber;
     const title = options.title;
+    
+    // Validate language
+    if (!config.languages.includes(language)) {
+      return {
+        success: false,
+        error: new Error(`Language "${language}" is not configured in book.yaml`)
+      };
+    }
     
     // Create chapter directory
     const chapterDir = path.join(projectRoot, 'book', language, `chapter-${chapterNumber}`);
@@ -128,8 +170,17 @@ async function createChapter(options) {
 async function checkChapter(options) {
   try {
     const projectRoot = findProjectRoot();
+    const config = loadConfig(projectRoot);
     const language = options.language || 'en';
     const chapterNumber = options.chapterNumber;
+    
+    // Validate language
+    if (!config.languages.includes(language)) {
+      return {
+        success: false,
+        error: new Error(`Language "${language}" is not configured in book.yaml`)
+      };
+    }
     
     const chapterDir = path.join(projectRoot, 'book', language, `chapter-${chapterNumber}`);
     
@@ -229,7 +280,7 @@ async function getBookInfo() {
           const files = fs.readdirSync(buildDir);
           
           files.forEach(file => {
-            if (file !== 'book.md' && !file.endsWith('.tmp')) {
+            if (file !== 'book.md' && !file.endsWith('.tmp') && !file.endsWith('.yaml')) {
               builtFiles.push(path.join(buildDir, file));
             }
           });
@@ -239,6 +290,7 @@ async function getBookInfo() {
       }
     }
     
+    // Return the configuration with built files
     return {
       ...config,
       builtFiles
@@ -294,10 +346,88 @@ async function cleanBuild() {
   }
 }
 
+/**
+ * Validate book configuration
+ * 
+ * @returns {Promise<Object>} - Validation result
+ */
+async function validateConfig() {
+  try {
+    const projectRoot = findProjectRoot();
+    const config = loadConfig(projectRoot);
+    
+    const validationResult = {
+      success: true,
+      config,
+      warnings: [],
+      errors: []
+    };
+    
+    // Check essential properties
+    if (!config.title) {
+      validationResult.warnings.push('Book title is not defined');
+    }
+    
+    if (!config.author) {
+      validationResult.warnings.push('Book author is not defined');
+    }
+    
+    // Check languages
+    if (!config.languages || config.languages.length === 0) {
+      validationResult.errors.push('No languages defined');
+      validationResult.success = false;
+    }
+    
+    // Check languages directories
+    for (const language of config.languages || []) {
+      const langDir = path.join(projectRoot, 'book', language);
+      if (!fs.existsSync(langDir)) {
+        validationResult.warnings.push(`Language directory not found: ${langDir}`);
+      }
+    }
+    
+    // Check format settings
+    for (const format of ['pdf', 'epub', 'html']) {
+      if (config.formats[format]) {
+        const formatSettings = getFormatSettings(config, format);
+        
+        if (format === 'pdf' && formatSettings.template) {
+          const templatePath = path.join(projectRoot, formatSettings.template);
+          if (!fs.existsSync(templatePath)) {
+            validationResult.warnings.push(`PDF template not found: ${templatePath}`);
+          }
+        }
+        
+        if (format === 'epub' && formatSettings.coverImage) {
+          const coverPath = path.join(projectRoot, formatSettings.coverImage);
+          if (!fs.existsSync(coverPath)) {
+            validationResult.warnings.push(`EPUB cover image not found: ${coverPath}`);
+          }
+        }
+        
+        if (format === 'html' && formatSettings.template) {
+          const templatePath = path.join(projectRoot, formatSettings.template);
+          if (!fs.existsSync(templatePath)) {
+            validationResult.warnings.push(`HTML template not found: ${templatePath}`);
+          }
+        }
+      }
+    }
+    
+    return validationResult;
+  } catch (error) {
+    return {
+      success: false,
+      error
+    };
+  }
+}
+
 module.exports = {
   buildBook,
   createChapter,
   checkChapter,
   getBookInfo,
-  cleanBuild
+  cleanBuild,
+  validateConfig
 };

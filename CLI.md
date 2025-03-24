@@ -10,7 +10,7 @@ book-tools create BOOKNAME [language] [--copy-scripts]
 
 book-tools build [format]
 
-Where format can be: pdf, epub, mobi, html, or all
+Where format can be: pdf, epub, mobi, html, docx, or all
 
 ## Get help
 

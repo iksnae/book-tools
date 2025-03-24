@@ -19,6 +19,10 @@ pandoc -o templates/docx/reference.docx --print-default-data-file reference.docx
 if [ $? -eq 0 ]; then
     echo "Successfully created reference.docx in templates/docx/"
     echo "You can now customize this file in Word and save it back to use as your template."
+    
+    # Get the file size
+    SIZE=$(du -h templates/docx/reference.docx | cut -f1)
+    echo "File size: $SIZE"
 else
     echo "Error: Failed to create reference.docx."
     echo "Please check your pandoc installation."

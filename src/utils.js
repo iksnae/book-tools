@@ -55,7 +55,7 @@ function ensureDirectoryExists(dirPath) {
  */
 function buildFileNames(language, projectRoot) {
   const config = loadBookConfig(projectRoot);
-  const filePrefix = config.filePrefix || 'book';
+  const filePrefix = config.file_prefix || config.filePrefix || 'book';
   
   const buildDir = path.join(projectRoot, 'build', language);
   
@@ -138,6 +138,9 @@ function createPandocCommand(config, inputPath, outputPath, format, language, re
   const { getPandocArgs } = require('./config');
   const args = getPandocArgs(config, format, language);
   
+  // Make sure the output directory exists
+  ensureDirectoryExists(path.dirname(outputPath));
+  
   // Add input and output files
   const formatArg = format === 'pdf' ? 'latex' : format;
   const command = [
@@ -151,6 +154,17 @@ function createPandocCommand(config, inputPath, outputPath, format, language, re
   // Add resource paths if provided
   if (resourcePaths) {
     command.push(`--resource-path="${resourcePaths}"`);
+  }
+  
+  // For DOCX, check if reference_doc exists and add error handler if not
+  if (format === 'docx') {
+    const docxSettings = config.formatSettings?.docx || config.docx || {};
+    const referenceDoc = docxSettings.referenceDoc || docxSettings.reference_doc;
+    
+    // Log warning if reference doc is specified but doesn't exist
+    if (referenceDoc && !fs.existsSync(referenceDoc)) {
+      console.warn(`Warning: DOCX reference document '${referenceDoc}' not found. Using default styles.`);
+    }
   }
   
   return command.join(' ');

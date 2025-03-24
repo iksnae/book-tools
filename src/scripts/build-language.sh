@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # build-language.sh - Builds book formats for a specific language
-# Usage: build-language.sh [language] [config_file] [project_root] [skip_pdf] [skip_epub] [skip_html] [skip_mobi]
+# Usage: build-language.sh [language] [config_file] [project_root] [skip_pdf] [skip_epub] [skip_html] [skip_mobi] [skip_docx]
 
 set -e  # Exit on error
 
@@ -13,6 +13,7 @@ SKIP_PDF=${4:-false}
 SKIP_EPUB=${5:-false}
 SKIP_HTML=${6:-false}
 SKIP_MOBI=${7:-false}
+SKIP_DOCX=${8:-false}
 
 SCRIPTS_DIR="$(dirname "$(realpath "$0")")"
 BUILD_DIR="$PROJECT_ROOT/build/$LANGUAGE"
@@ -77,6 +78,13 @@ if (command -v kindlegen &> /dev/null || command -v ebook-convert &> /dev/null) 
   echo "📚 Generating MOBI..."
   MOBI_OUTPUT="$BUILD_DIR/book.mobi"
   "$SCRIPTS_DIR/generate-mobi.sh" "$LANGUAGE" "$EPUB_OUTPUT" "$MOBI_OUTPUT" "$PROJECT_ROOT"
+fi
+
+# 6. Generate DOCX (if pandoc is available)
+if command -v pandoc &> /dev/null && [ "$SKIP_DOCX" != "true" ]; then
+  echo "📝 Generating DOCX..."
+  DOCX_OUTPUT="$BUILD_DIR/book.docx"
+  "$SCRIPTS_DIR/generate-docx.sh" "$LANGUAGE" "$MARKDOWN_OUTPUT" "$DOCX_OUTPUT" "$BOOK_TITLE" "$BOOK_SUBTITLE" "resources" "$PROJECT_ROOT"
 fi
 
 # Print success message with generated files

@@ -1,26 +1,22 @@
 #!/bin/bash
 
 # tag-release.sh - Script to tag a new release in Git and push it to GitHub
-# Usage: ./tag-release.sh [version] [--force]
+# Usage: ./tag-release.sh [version]
 # Examples:
-#   ./tag-release.sh v1.0.0         # Create tag v1.0.0 with confirmation
-#   ./tag-release.sh v1.0.0 --force # Create tag v1.0.0 without confirmation
-#   ./tag-release.sh                # Prompt for version
+#   ./tag-release.sh v1.0.0  # Create tag v1.0.0
+#   ./tag-release.sh         # Prompt for version
 
 set -e  # Exit on error
 
 # Parse arguments
 VERSION=""
-FORCE=false
 
 for arg in "$@"; do
-  if [[ "$arg" == "--force" ]]; then
-    FORCE=true
-  elif [[ "$arg" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  if [[ "$arg" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     VERSION="$arg"
   else
     echo "Error: Invalid argument '$arg'"
-    echo "Usage: ./tag-release.sh [version] [--force]"
+    echo "Usage: ./tag-release.sh [version]"
     echo "       version format: v1.0.0"
     exit 1
   fi
@@ -49,15 +45,6 @@ fi
 # Get current branch
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
 echo "📋 Current branch: $BRANCH"
-
-# Confirm unless force flag is used
-if [[ "$FORCE" != true ]]; then
-  read -p "⚠️ Are you sure you want to create tag $VERSION on branch $BRANCH? (y/N): " CONFIRM
-  if [[ "$CONFIRM" != "y" && "$CONFIRM" != "Y" ]]; then
-    echo "❌ Aborted. No tag created."
-    exit 0
-  fi
-fi
 
 # Create the tag
 echo "📌 Creating tag $VERSION..."

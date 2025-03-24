@@ -20,7 +20,7 @@ outputs:
   epub: true
   mobi: true
   html: true
-  docx: true
+  docx: false  # Set to false by default until PDF/EPUB/HTML/MOBI are working
 
 # Languages to build
 # Add multiple language codes to build translations

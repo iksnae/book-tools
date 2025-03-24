@@ -13,9 +13,9 @@ on:
         default: 'en'
         type: string
       formats:
-        description: 'Formats to build (comma-separated, default: pdf,epub,html)'
+        description: 'Formats to build (comma-separated, default: pdf,epub,html,docx)'
         required: false
-        default: 'pdf,epub,html'
+        default: 'pdf,epub,html,docx'
         type: string
 
 jobs:
@@ -32,11 +32,11 @@ jobs:
         if [ -f "book.yaml" ]; then
           echo "Using configuration from book.yaml"
           # Extract book title
-          BOOK_TITLE=$(grep 'title:' book.yaml | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' | sed 's/"//g')
+          BOOK_TITLE=$(grep 'title:' book.yaml | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' | sed 's/\"//g')
           echo "BOOK_TITLE=$BOOK_TITLE" >> $GITHUB_ENV
           
           # Extract book author
-          BOOK_AUTHOR=$(grep 'author:' book.yaml | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' | sed 's/"//g')
+          BOOK_AUTHOR=$(grep 'author:' book.yaml | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' | sed 's/\"//g')
           echo "BOOK_AUTHOR=$BOOK_AUTHOR" >> $GITHUB_ENV
         else
           echo "No book.yaml found, using default values"
@@ -60,9 +60,21 @@ jobs:
           fi
         done
         
+        # Create template directories
+        mkdir -p templates/html
+        mkdir -p templates/pdf
+        mkdir -p templates/epub
+        mkdir -p templates/docx
+        
+        # Create default reference docx if needed
+        if [ ! -f templates/docx/reference.docx ]; then
+          pandoc -o templates/docx/reference.docx --print-default-data-file reference.docx
+        fi
+        
         # Fix permissions on script files
         chmod +x src/scripts/*.sh
         chmod +x test-build.sh 2>/dev/null || true
+        chmod +x templates/docx/create_reference.sh 2>/dev/null || true
 
     - name: Run test build script
       run: |
@@ -128,5 +140,5 @@ jobs:
           build/**/*.epub
           build/**/*.mobi
           build/**/*.html
-          build/**/*.md
+          build/**/*.docx
         retention-days: 7

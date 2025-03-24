@@ -102,21 +102,28 @@ fi
 
 # Get supported languages from config or book directory
 if grep -q "^languages:" "$CONFIG_FILE"; then
-  # Extract languages from config file - handle various formats
-  # First try to extract as YAML array format [en, fr]
-  LANGS_ARRAY=$(grep "^languages:" "$CONFIG_FILE" | sed 's/^languages:\s*\[\(.*\)\]/\1/' | tr -d " " | tr "," " ")
-  
-  # If empty, try list format
-  if [ -z "$LANGS_ARRAY" ]; then
-    LANGS_LIST=$(grep -A 10 "^languages:" "$CONFIG_FILE" | grep -E "^\s*-\s*" | sed 's/^\s*-\s*//;s/"//g' | tr "\n" " ")
-    SUPPORTED_LANGUAGES="$LANGS_LIST"
+  # Try to extract languages from YAML list format (- en)
+  if grep -q "^languages:" "$CONFIG_FILE" | grep -q "^  -"; then
+    # Extract languages in list format
+    SUPPORTED_LANGUAGES=$(grep -A 10 "^languages:" "$CONFIG_FILE" | grep -E "^\s*-\s*" | sed 's/^\s*-\s*//;s/"//g;s/'\''//g' | tr "\n" " " | xargs)
   else
-    SUPPORTED_LANGUAGES="$LANGS_ARRAY"
+    # Try to extract from array format [en, fr]
+    ARRAY_MATCH=$(grep "^languages:" "$CONFIG_FILE" | sed -E 's/^languages:\s*\[\s*(.+)\s*\].*/\1/')
+    if [ "$ARRAY_MATCH" != "$(grep "^languages:" "$CONFIG_FILE")" ]; then
+      # Successfully matched array format
+      SUPPORTED_LANGUAGES=$(echo "$ARRAY_MATCH" | tr "," " " | sed 's/"//g;s/'\''//g' | xargs)
+    fi
+  fi
+  
+  # If still empty, try other formats
+  if [ -z "$SUPPORTED_LANGUAGES" ]; then
+    # Just get the line content after the colon and clean it
+    SUPPORTED_LANGUAGES=$(grep "^languages:" "$CONFIG_FILE" | cut -d ':' -f 2- | sed 's/^[ \t]*//;s/"//g;s/'\''//g' | xargs)
   fi
 else
   # Discover languages from book directory structure
   if [ -d "$PROJECT_ROOT/book" ]; then
-    SUPPORTED_LANGUAGES=$(find "$PROJECT_ROOT/book" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | grep -v "images" | sort | tr "\n" " ")
+    SUPPORTED_LANGUAGES=$(find "$PROJECT_ROOT/book" -mindepth 1 -maxdepth 1 -type d -name "[a-z][a-z]*" -exec basename {} \; | grep -v "images" | sort | tr "\n" " ")
   else
     # Default to English
     SUPPORTED_LANGUAGES="en"
@@ -131,7 +138,7 @@ else
 fi
 
 # Clean existing languages for clarity
-SUPPORTED_LANGUAGES=$(echo "$SUPPORTED_LANGUAGES" | tr ',' ' ' | tr '"' ' ' | xargs)
+SUPPORTED_LANGUAGES=$(echo "$SUPPORTED_LANGUAGES" | tr ',' ' ' | tr '"' ' ' | sed 's/\[//g;s/\]//g' | xargs)
 
 # If we still have no languages, default to English
 if [ -z "$SUPPORTED_LANGUAGES" ]; then

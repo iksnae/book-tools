@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { exec } = require('child_process');
-const yaml = require('yaml');
+const { loadConfig, getDefaultConfig } = require('./config');
 
 /**
  * Find the project root directory by looking for book.yaml
@@ -25,31 +25,14 @@ function findProjectRoot() {
 }
 
 /**
- * Load book configuration from book.yaml
+ * Load book configuration from book.yaml with extended support
  * 
  * @param {string} projectRoot - Path to the project root
  * @returns {Object} - Book configuration
  */
-function loadConfig(projectRoot) {
+function loadBookConfig(projectRoot) {
   const configPath = path.join(projectRoot, 'book.yaml');
-  
-  if (fs.existsSync(configPath)) {
-    try {
-      const configContent = fs.readFileSync(configPath, 'utf-8');
-      return yaml.parse(configContent);
-    } catch (error) {
-      console.error(`Error reading config: ${error.message}`);
-    }
-  }
-  
-  // Return default configuration
-  return {
-    title: 'Untitled Book',
-    subtitle: '',
-    author: 'Unknown Author',
-    filePrefix: 'book',
-    languages: ['en']
-  };
+  return loadConfig(configPath);
 }
 
 /**
@@ -71,7 +54,7 @@ function ensureDirectoryExists(dirPath) {
  * @returns {Object} - Object with file paths for input and outputs
  */
 function buildFileNames(language, projectRoot) {
-  const config = loadConfig(projectRoot);
+  const config = loadBookConfig(projectRoot);
   const filePrefix = config.filePrefix || 'book';
   
   const buildDir = path.join(projectRoot, 'build', language);
@@ -111,10 +94,73 @@ function runScript(scriptPath, args = []) {
   });
 }
 
+/**
+ * Run a command with error handling
+ * 
+ * @param {string} command - Command to run
+ * @param {object} options - Options for child_process.exec
+ * @returns {Promise<object>} - Result of the command execution
+ */
+function runCommand(command, options = {}) {
+  return new Promise((resolve, reject) => {
+    exec(command, options, (error, stdout, stderr) => {
+      if (error) {
+        // Include the stderr in the error for better diagnostics
+        error.stderr = stderr;
+        error.stdout = stdout;
+        reject(error);
+        return;
+      }
+      
+      resolve({
+        success: true,
+        stdout,
+        stderr
+      });
+    });
+  });
+}
+
+/**
+ * Create pandoc command for converting markdown to a specific format
+ * 
+ * @param {Object} config - Book configuration
+ * @param {string} inputPath - Path to input markdown file
+ * @param {string} outputPath - Path to output file
+ * @param {string} format - Output format (pdf, epub, html)
+ * @param {string} language - Language code
+ * @param {string} resourcePaths - Search paths for resources
+ * @returns {string} - Pandoc command
+ */
+function createPandocCommand(config, inputPath, outputPath, format, language, resourcePaths = '') {
+  // Get pandoc arguments from config
+  const { getPandocArgs } = require('./config');
+  const args = getPandocArgs(config, format, language);
+  
+  // Add input and output files
+  const formatArg = format === 'pdf' ? 'latex' : format;
+  const command = [
+    'pandoc',
+    `"${inputPath}"`,
+    `-o "${outputPath}"`,
+    `-t ${formatArg}`,
+    args.join(' ')
+  ];
+  
+  // Add resource paths if provided
+  if (resourcePaths) {
+    command.push(`--resource-path="${resourcePaths}"`);
+  }
+  
+  return command.join(' ');
+}
+
 module.exports = {
   findProjectRoot,
-  loadConfig,
+  loadBookConfig,
   ensureDirectoryExists,
   buildFileNames,
-  runScript
+  runScript,
+  runCommand,
+  createPandocCommand
 };

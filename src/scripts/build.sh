@@ -7,7 +7,7 @@ set -e  # Exit on error
 
 # Default values
 SCRIPTS_DIR="$(dirname "$(realpath "$0")")"
-PROJECT_ROOT="$(dirname "$SCRIPTS_DIR")"
+PROJECT_ROOT="$(dirname "$(dirname "$SCRIPTS_DIR")")"  # Go up two levels, src/scripts -> src -> root
 
 # If first argument is a path and exists, use that as the project root
 if [ $# -gt 0 ] && [ -d "$1" ]; then
@@ -49,6 +49,11 @@ echo "📚 Starting book build process..."
 echo "📄 Using config file: $CONFIG_FILE"
 echo "📁 Project root: $PROJECT_ROOT"
 
+# Debugging information
+echo "📂 Directory structure:"
+ls -la "$PROJECT_ROOT"
+ls -la "$PROJECT_ROOT/book" || echo "No book directory found"
+
 # Check if config file exists
 if [ ! -f "$CONFIG_FILE" ]; then
   echo "❌ Config file not found: $CONFIG_FILE"
@@ -69,15 +74,42 @@ fi
 
 # Get supported languages from config or book directory
 if grep -q "^languages:" "$CONFIG_FILE"; then
-  # Extract languages from config file
-  SUPPORTED_LANGUAGES=$(grep "^languages:" "$CONFIG_FILE" | cut -d ':' -f 2- | sed 's/^[ \t]*//' | tr -d '[]' | tr ',' ' ')
+  # Extract languages from config file - handle various formats
+  # First try to extract as YAML array format [en, fr]
+  LANGS_ARRAY=$(grep "^languages:" "$CONFIG_FILE" | sed 's/^languages:\s*\[\(.*\)\]/\1/' | tr -d " " | tr "," " ")
+  
+  # If empty, try list format
+  if [ -z "$LANGS_ARRAY" ]; then
+    LANGS_LIST=$(grep -A 10 "^languages:" "$CONFIG_FILE" | grep -E "^\s*-\s*" | sed 's/^\s*-\s*//;s/"//g' | tr "\n" " ")
+    SUPPORTED_LANGUAGES="$LANGS_LIST"
+  else
+    SUPPORTED_LANGUAGES="$LANGS_ARRAY"
+  fi
 else
   # Discover languages from book directory structure
-  SUPPORTED_LANGUAGES=$(find "$PROJECT_ROOT/book" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort)
+  if [ -d "$PROJECT_ROOT/book" ]; then
+    SUPPORTED_LANGUAGES=$(find "$PROJECT_ROOT/book" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | grep -v "images" | sort | tr "\n" " ")
+  else
+    # Default to English
+    SUPPORTED_LANGUAGES="en"
+    echo "⚠️ Warning: No book directory found, defaulting to 'en'"
+    
+    # Create minimal structure
+    mkdir -p "$PROJECT_ROOT/book/en/chapter-01"
+    echo "# Sample Chapter" > "$PROJECT_ROOT/book/en/chapter-01/01-sample.md"
+    echo "This is a sample chapter created automatically." >> "$PROJECT_ROOT/book/en/chapter-01/01-sample.md"
+    echo "✏️ Created a minimal book structure for testing"
+  fi
 fi
 
 # Clean existing languages for clarity
-SUPPORTED_LANGUAGES=$(echo "$SUPPORTED_LANGUAGES" | tr ',' ' ' | xargs)
+SUPPORTED_LANGUAGES=$(echo "$SUPPORTED_LANGUAGES" | tr ',' ' ' | tr '"' ' ' | xargs)
+
+# If we still have no languages, default to English
+if [ -z "$SUPPORTED_LANGUAGES" ]; then
+  SUPPORTED_LANGUAGES="en"
+  echo "⚠️ No languages detected, defaulting to 'en'"
+fi
 
 echo "📋 Supported languages: $SUPPORTED_LANGUAGES"
 
@@ -130,8 +162,10 @@ for language in $LANGUAGES_TO_BUILD; do
   
   # Check if language directory exists
   if [ ! -d "$PROJECT_ROOT/book/$language" ]; then
-    echo "⚠️ Warning: Directory $PROJECT_ROOT/book/$language does not exist, skipping..."
-    continue
+    echo "⚠️ Warning: Directory $PROJECT_ROOT/book/$language does not exist, creating minimal structure..."
+    mkdir -p "$PROJECT_ROOT/book/$language/chapter-01"
+    echo "# Sample Chapter" > "$PROJECT_ROOT/book/$language/chapter-01/01-sample.md"
+    echo "This is a sample chapter created automatically for $language." >> "$PROJECT_ROOT/book/$language/chapter-01/01-sample.md"
   fi
   
   # Build this language

@@ -1,8 +1,18 @@
 # Book Tools
 
-A collection of tools for building books in multiple formats (PDF, EPUB, MOBI, HTML, DOCX) from markdown files.
+A powerful and flexible toolkit for creating and managing multi-format, multi-language books. Build beautiful books in PDF, EPUB, MOBI, HTML, and DOCX formats from markdown files, with support for multiple languages, chapters, and advanced formatting options.
 
 ## Overview
+
+Book Tools provides a comprehensive suite of tools for book creation and management:
+
+- **Multi-format Output**: Generate books in PDF, EPUB, MOBI, HTML, and DOCX formats
+- **Language Support**: Build books in multiple languages with parallel content structures
+- **Chapter Management**: Create and organize chapters with automatic numbering and structure
+- **Smart Building**: Intelligent build system that only processes changed content
+- **Verbose Mode**: Detailed output options for debugging and progress tracking
+- **Docker Support**: Containerized building with all dependencies included
+- **GitHub Actions**: Built-in CI/CD workflows for automated builds and releases
 
 This project provides shell scripts for building books from markdown files using Pandoc and other tools. The scripts handle:
 
@@ -86,6 +96,46 @@ For a completely self-contained book project with its own scripts:
 ```bash
 book-tools create my-awesome-book --copy-scripts
 ```
+
+### Creating Chapters
+
+You can create new chapters using the CLI:
+
+```bash
+# Create a new chapter
+book-tools create-chapter -n 01 -t "Introduction" -l en
+
+# Or use interactive mode
+book-tools create-chapter
+```
+
+The create-chapter command will:
+1. Create a new chapter directory with proper numbering
+2. Set up the initial markdown files
+3. Add the chapter to the book's structure
+
+### Build Options
+
+When building your book, you can use various options:
+
+```bash
+# Build with verbose output
+book-tools build --verbose
+
+# Build specific formats
+book-tools build pdf
+book-tools build epub
+book-tools build all
+
+# Build with Docker
+book-tools build-docker --verbose
+```
+
+The verbose mode provides detailed output about:
+- File processing steps
+- Build progress
+- Error details
+- Resource usage
 
 ### Building a Book
 

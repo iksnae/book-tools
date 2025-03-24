@@ -1,0 +1,55 @@
+# Example Book Configuration
+# This demonstrates the extended configuration options supported by book-tools
+
+# Basic Information
+title: "Extended Configuration Example"
+subtitle: "A demonstration of the book-tools configuration system"
+author: "Khaos Studios"
+publisher: "Khaos Studios"
+year: "2025"
+filePrefix: "extended-config-example"
+
+# Languages to build (ISO 639-1 codes)
+languages:
+  - "en"  # English
+  - "es"  # Spanish (optional)
+
+# Output formats to generate
+formats:
+  pdf: true
+  epub: true
+  mobi: true
+  html: true
+
+# Format-specific settings
+formatSettings:
+  # PDF settings
+  pdf:
+    paperSize: "letter"  # letter, a4, etc.
+    marginTop: "1in"
+    marginRight: "1in"
+    marginBottom: "1in"
+    marginLeft: "1in"
+    fontSize: "11pt"
+    lineHeight: "1.5"
+    template: "templates/pdf/default.latex"  # Custom LaTeX template (optional)
+
+  # EPUB settings
+  epub:
+    coverImage: "book/images/cover.png"  # Path to cover image
+    css: "templates/epub/style.css"  # Custom CSS (optional)
+    tocDepth: 3  # Table of contents depth
+
+  # HTML settings
+  html:
+    template: "templates/html/default.html"  # Custom HTML template (optional)
+    css: "templates/html/style.css"  # Custom CSS (optional)
+    toc: true  # Include table of contents
+    tocDepth: 3  # Table of contents depth
+    sectionDivs: true  # Put sections in div elements
+    selfContained: true  # Create a standalone HTML file with no external dependencies
+
+# Metadata
+rights: "Copyright © 2025 Khaos Studios. All rights reserved."
+description: "A demonstration of the extended configuration options available in the book-tools system."
+keywords: "book-tools, configuration, publishing, markdown"

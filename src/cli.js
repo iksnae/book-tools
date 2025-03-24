@@ -8,7 +8,8 @@ const {
   createChapter, 
   checkChapter, 
   getBookInfo, 
-  cleanBuild 
+  cleanBuild,
+  validate
 } = require('./index');
 
 /**
@@ -18,7 +19,7 @@ function configureCLI() {
   program
     .name('book')
     .description('Book Tools CLI for building books from markdown sources')
-    .version('0.1.0');
+    .version('0.2.0');
 
   // Build command
   program
@@ -391,6 +392,129 @@ function configureCLI() {
       }
     });
 
+  // Validate command
+  program
+    .command('validate')
+    .description('Check configuration and dependencies')
+    .option('-c, --config <path>', 'Path to configuration file (default: "book.yaml")')
+    .option('-f, --fix', 'Attempt to fix common issues')
+    .option('--verbose', 'Show detailed validation information')
+    .action(async (options) => {
+      try {
+        const spinner = ora('Validating project setup...').start();
+        
+        const validateOptions = {
+          configPath: options.config || 'book.yaml',
+          fix: options.fix || false,
+          verbose: options.verbose || false
+        };
+        
+        const result = await validate(validateOptions);
+        
+        if (result.valid) {
+          spinner.succeed(chalk.green('Project configuration is valid!'));
+        } else {
+          spinner.warn(chalk.yellow('Project configuration has issues'));
+        }
+        
+        // Display summary of validation
+        console.log(chalk.blue('\nValidation Summary:'));
+        
+        // Configuration status
+        console.log(chalk.cyan('Configuration:'), 
+          result.config.valid ? chalk.green('✅ Valid') : chalk.yellow('⚠️ Has issues'));
+        
+        // Dependencies status
+        const depStatus = result.dependencies.issues.some(i => i.type === 'error') 
+          ? chalk.red('❌ Missing required dependencies')
+          : (result.dependencies.issues.length > 0 
+            ? chalk.yellow('⚠️ Some optional dependencies missing') 
+            : chalk.green('✅ All dependencies installed'));
+        console.log(chalk.cyan('Dependencies:'), depStatus);
+        
+        // Directory structure status
+        console.log(chalk.cyan('Directory Structure:'), 
+          result.structure.valid ? chalk.green('✅ Valid') : chalk.yellow('⚠️ Has issues'));
+        
+        // List all issues
+        if (result.allIssues.length > 0) {
+          console.log(chalk.blue('\nIssues found:'));
+          
+          // Group issues by type
+          const errors = result.allIssues.filter(i => i.type === 'error');
+          const warnings = result.allIssues.filter(i => i.type === 'warning');
+          
+          if (errors.length > 0) {
+            console.log(chalk.red('\nErrors:'));
+            errors.forEach(issue => {
+              console.log(chalk.red(`  - ${issue.message}`));
+            });
+          }
+          
+          if (warnings.length > 0) {
+            console.log(chalk.yellow('\nWarnings:'));
+            warnings.forEach(issue => {
+              console.log(chalk.yellow(`  - ${issue.message}`));
+            });
+          }
+        }
+        
+        // Display detailed information if verbose
+        if (options.verbose) {
+          // Show dependencies
+          console.log(chalk.blue('\nDetailed Dependencies:'));
+          Object.entries(result.dependencies.dependencies).forEach(([name, installed]) => {
+            console.log(`  - ${name}: ${installed ? chalk.green('✅ Installed') : chalk.yellow('⚠️ Not found')}`);
+          });
+          
+          // Show directory structure
+          console.log(chalk.blue('\nDirectory Structure:'));
+          Object.entries(result.structure.directories).forEach(([dir, exists]) => {
+            console.log(`  - ${dir}: ${exists ? chalk.green('✅ Exists') : chalk.yellow('⚠️ Not found')}`);
+          });
+        }
+        
+        // Provide recommendations
+        if (!result.valid) {
+          console.log(chalk.blue('\nRecommendations:'));
+          
+          if (result.dependencies.issues.some(i => i.type === 'error')) {
+            console.log(chalk.cyan('- Install missing dependencies:'));
+            result.dependencies.issues
+              .filter(i => i.type === 'error')
+              .forEach(issue => {
+                console.log(`  ${issue.message}`);
+              });
+          }
+          
+          if (!result.config.valid) {
+            console.log(chalk.cyan('- Fix configuration issues:'));
+            result.config.issues
+              .filter(i => i.type === 'error')
+              .forEach(issue => {
+                console.log(`  ${issue.message}`);
+              });
+          }
+          
+          if (!result.structure.valid) {
+            console.log(chalk.cyan('- Create missing directories:'));
+            Object.entries(result.structure.directories)
+              .filter(([_, exists]) => !exists)
+              .forEach(([dir]) => {
+                console.log(`  ${dir}`);
+              });
+          }
+          
+          // Suggest init command if major issues
+          if (result.allIssues.filter(i => i.type === 'error').length > 3) {
+            console.log(chalk.cyan('\nTip: You can use the `book init` command to create a new project with the correct structure'));
+          }
+        }
+      } catch (error) {
+        console.error(chalk.red(`Error: ${error.message}`));
+      }
+    });
+
   // GitHub Actions integration command
   program
     .command('github-action')
@@ -446,6 +570,79 @@ function configureCLI() {
       } catch (error) {
         console.error(chalk.red(`Error: ${error.message}`));
         process.exit(1);
+      }
+    });
+
+  // Initialize project command
+  program
+    .command('init')
+    .description('Initialize a new book project with standard structure')
+    .option('-t, --template <template>', 'Template to use (basic, academic, technical)', 'basic')
+    .option('-n, --name <name>', 'Book name')
+    .option('-a, --author <author>', 'Author name')
+    .option('-l, --languages <languages>', 'Comma-separated list of language codes', 'en')
+    .action(async (options) => {
+      try {
+        console.log(chalk.blue('This command will be implemented in the next version'));
+        console.log(chalk.blue('For now, you can use the validate command to check your existing setup'));
+        
+        // TODO: Implement project initialization
+      } catch (error) {
+        console.error(chalk.red(`Error: ${error.message}`));
+      }
+    });
+
+  // Generate command
+  program
+    .command('generate <format>')
+    .description('Generate a specific format with customized settings')
+    .option('-l, --lang <language>', 'Language to build for (default: "en")')
+    .option('-i, --input <path>', 'Custom input path')
+    .option('-o, --output <path>', 'Custom output path')
+    .option('-t, --template <path>', 'Custom template path')
+    .option('-c, --config <path>', 'Custom config path')
+    .action(async (format, options) => {
+      try {
+        console.log(chalk.blue('This command will be implemented in the next version'));
+        console.log(chalk.blue('For now, you can use the build command with format-specific options'));
+        
+        // TODO: Implement format-specific generation
+      } catch (error) {
+        console.error(chalk.red(`Error: ${error.message}`));
+      }
+    });
+
+  // Watch command
+  program
+    .command('watch')
+    .description('Watch for changes and rebuild')
+    .option('-l, --lang <language>', 'Language to watch and build (default: "en")')
+    .option('-f, --formats <formats>', 'Comma-separated formats to build', 'html')
+    .action(async (options) => {
+      try {
+        console.log(chalk.blue('This command will be implemented in the next version'));
+        console.log(chalk.blue('For now, you can use the build command manually'));
+        
+        // TODO: Implement watch functionality
+      } catch (error) {
+        console.error(chalk.red(`Error: ${error.message}`));
+      }
+    });
+
+  // Serve command
+  program
+    .command('serve')
+    .description('Serve built HTML and provide live preview')
+    .option('-p, --port <port>', 'Port to serve on', '8080')
+    .option('-l, --lang <language>', 'Language to serve (default: "en")')
+    .action(async (options) => {
+      try {
+        console.log(chalk.blue('This command will be implemented in the next version'));
+        console.log(chalk.blue('For now, you can use a local web server to preview your HTML output'));
+        
+        // TODO: Implement serve functionality
+      } catch (error) {
+        console.error(chalk.red(`Error: ${error.message}`));
       }
     });
 

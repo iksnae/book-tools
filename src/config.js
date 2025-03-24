@@ -47,6 +47,25 @@ function loadExtendedConfig(config) {
   config.formatSettings.docx.tocDepth = config.formatSettings.docx.tocDepth || config.docx?.toc_depth || 3;
   config.formatSettings.docx.toc = config.formatSettings.docx.toc !== undefined ? config.formatSettings.docx.toc : config.docx?.toc !== false;
   
+  // Normalize output formats
+  config.formats = config.formats || {};
+  
+  // Handle legacy outputs format
+  if (config.outputs) {
+    config.formats.pdf = config.outputs.pdf !== false;
+    config.formats.epub = config.outputs.epub !== false;
+    config.formats.mobi = config.outputs.mobi !== false;
+    config.formats.html = config.outputs.html !== false;
+    config.formats.docx = config.outputs.docx !== false;
+  }
+  
+  // Ensure all formats have a boolean value
+  config.formats.pdf = config.formats.pdf !== false;
+  config.formats.epub = config.formats.epub !== false;
+  config.formats.mobi = config.formats.mobi !== false;
+  config.formats.html = config.formats.html !== false;
+  config.formats.docx = config.formats.docx !== false;
+  
   return config;
 }
 
@@ -149,6 +168,19 @@ function getDefaultConfig() {
 }
 
 /**
+ * Safely quote a string for command line usage
+ * 
+ * @param {string} str - String to quote
+ * @returns {string} - Safely quoted string
+ */
+function safeQuote(str) {
+  // Replace double quotes with escaped double quotes
+  const escaped = str.replace(/"/g, '\\"');
+  // Wrap in double quotes
+  return `"${escaped}"`;
+}
+
+/**
  * Generate pandoc arguments from config
  * 
  * @param {Object} config - Configuration object
@@ -159,18 +191,18 @@ function getDefaultConfig() {
 function getPandocArgs(config, format, language) {
   const args = [
     '--standalone',
-    `--metadata=title:${config.title}`,
-    `--metadata=author:${config.author}`
+    `--metadata=title:${safeQuote(config.title)}`,
+    `--metadata=author:${safeQuote(config.author)}`
   ];
   
   if (config.subtitle) {
-    args.push(`--metadata=subtitle:${config.subtitle}`);
+    args.push(`--metadata=subtitle:${safeQuote(config.subtitle)}`);
   }
   
   if (config.metadata) {
     for (const [key, value] of Object.entries(config.metadata)) {
       if (value) {
-        args.push(`--metadata=${key}:${value}`);
+        args.push(`--metadata=${key}:${safeQuote(value.toString())}`);
       }
     }
   }
@@ -182,45 +214,45 @@ function getPandocArgs(config, format, language) {
     const pdfSettings = formatSettings.pdf || {};
     
     if (pdfSettings.paperSize) {
-      args.push(`--variable=papersize:${pdfSettings.paperSize}`);
+      args.push(`--variable=papersize:${safeQuote(pdfSettings.paperSize)}`);
     }
     
     if (pdfSettings.marginTop) {
-      args.push(`--variable=margin-top:${pdfSettings.marginTop}`);
+      args.push(`--variable=margin-top:${safeQuote(pdfSettings.marginTop)}`);
     }
     
     if (pdfSettings.marginRight) {
-      args.push(`--variable=margin-right:${pdfSettings.marginRight}`);
+      args.push(`--variable=margin-right:${safeQuote(pdfSettings.marginRight)}`);
     }
     
     if (pdfSettings.marginBottom) {
-      args.push(`--variable=margin-bottom:${pdfSettings.marginBottom}`);
+      args.push(`--variable=margin-bottom:${safeQuote(pdfSettings.marginBottom)}`);
     }
     
     if (pdfSettings.marginLeft) {
-      args.push(`--variable=margin-left:${pdfSettings.marginLeft}`);
+      args.push(`--variable=margin-left:${safeQuote(pdfSettings.marginLeft)}`);
     }
     
     if (pdfSettings.fontSize) {
-      args.push(`--variable=fontsize:${pdfSettings.fontSize}`);
+      args.push(`--variable=fontsize:${safeQuote(pdfSettings.fontSize)}`);
     }
     
     if (pdfSettings.lineHeight) {
-      args.push(`--variable=lineheight:${pdfSettings.lineHeight}`);
+      args.push(`--variable=lineheight:${safeQuote(pdfSettings.lineHeight)}`);
     }
     
     if (pdfSettings.template && fs.existsSync(pdfSettings.template)) {
-      args.push(`--template=${pdfSettings.template}`);
+      args.push(`--template=${safeQuote(pdfSettings.template)}`);
     }
   } else if (format === 'epub') {
     const epubSettings = formatSettings.epub || {};
     
     if (epubSettings.coverImage && fs.existsSync(epubSettings.coverImage)) {
-      args.push(`--epub-cover-image=${epubSettings.coverImage}`);
+      args.push(`--epub-cover-image=${safeQuote(epubSettings.coverImage)}`);
     }
     
     if (epubSettings.css && fs.existsSync(epubSettings.css)) {
-      args.push(`--css=${epubSettings.css}`);
+      args.push(`--css=${safeQuote(epubSettings.css)}`);
     }
     
     if (epubSettings.tocDepth) {
@@ -232,11 +264,11 @@ function getPandocArgs(config, format, language) {
     const htmlSettings = formatSettings.html || {};
     
     if (htmlSettings.template && fs.existsSync(htmlSettings.template)) {
-      args.push(`--template=${htmlSettings.template}`);
+      args.push(`--template=${safeQuote(htmlSettings.template)}`);
     }
     
     if (htmlSettings.css && fs.existsSync(htmlSettings.css)) {
-      args.push(`--css=${htmlSettings.css}`);
+      args.push(`--css=${safeQuote(htmlSettings.css)}`);
     }
     
     if (htmlSettings.toc !== false) {
@@ -258,7 +290,7 @@ function getPandocArgs(config, format, language) {
     const docxSettings = formatSettings.docx || {};
     
     if (docxSettings.referenceDoc && fs.existsSync(docxSettings.referenceDoc)) {
-      args.push(`--reference-doc=${docxSettings.referenceDoc}`);
+      args.push(`--reference-doc=${safeQuote(docxSettings.referenceDoc)}`);
     }
     
     if (docxSettings.toc !== false) {
@@ -281,5 +313,6 @@ module.exports = {
   convertLegacyConfig,
   loadConfig,
   getDefaultConfig,
-  getPandocArgs
+  getPandocArgs,
+  safeQuote
 };

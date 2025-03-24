@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <title>$title$</title>
+  $if(css)$
+  <link rel="stylesheet" href="$css$">
+  $else$
+  <style>
+    body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+    h1, h2, h3 { color: #333; }
+  </style>
+  $endif$
+</head>
+<body>
+  <header>
+    <h1>$title$</h1>
+    $if(subtitle)$<h2>$subtitle$</h2>$endif$
+    $if(author)$<p>$author$</p>$endif$
+  </header>
+  $if(toc)$
+  <nav id="$idprefix$TOC">
+    $table-of-contents$
+  </nav>
+  $endif$
+  <main>
+    $body$
+  </main>
+</body>
+</html>

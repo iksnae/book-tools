@@ -7,6 +7,7 @@
 
 const path = require('path');
 const { ensureDirectoryExists } = require('../utils');
+const { getResourcePaths } = require('./utils');
 
 // Import format-specific generators
 const pdfGenerator = require('./pdf');
@@ -47,30 +48,8 @@ async function generateFormat(config, inputPath, outputPath, format, language, o
   }
 }
 
-/**
- * Get resource paths for a specific language
- * 
- * @param {string} projectRoot - Path to project root
- * @param {string} language - Language code
- * @returns {string} - Colon-separated list of resource paths
- */
-function getResourcePaths(projectRoot, language) {
-  return [
-    '.', 
-    'book', 
-    `book/${language}`, 
-    'build', 
-    `book/${language}/images`, 
-    'book/images', 
-    'build/images', 
-    `build/${language}/images`
-  ].map(p => path.join(projectRoot, p))
-   .join(':');
-}
-
 module.exports = {
   generateFormat,
-  getResourcePaths,
   // Export format-specific generators for direct access
   ...pdfGenerator,
   ...epubGenerator,

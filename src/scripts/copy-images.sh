@@ -1,78 +1,73 @@
 #!/bin/bash
 
-# copy-images.sh - Handles copying of images for the book build process
+# copy-images.sh - Handles image copying from multiple source directories
 
 set -e  # Exit on error
 
 if [ "$VERBOSE" = true ]; then
-    echo "🖼️ Setting up image directories..."
+    echo "🖼️ Setting up images..."
 fi
 
 # Create image directories
-mkdir -p build/images
-mkdir -p build/en/images
-mkdir -p build/es/images 2>/dev/null || true
+mkdir -p "build/images"
+mkdir -p "build/en/images"
+mkdir -p "build/es/images"
 
-# Function to copy images with logging
+# Function to copy images from a source directory
 copy_images() {
     local src="$1"
     local dest="$2"
-    local type="$3"
-    
     if [ -d "$src" ]; then
         if [ "$VERBOSE" = true ]; then
-            echo "📸 Copying $type images from $src to $dest"
+            echo "📂 Copying images from $src to $dest"
         fi
-        cp -r "$src"/* "$dest/" 2>/dev/null || true
-        
-        if [ "$VERBOSE" = true ]; then
-            local count=$(find "$dest" -type f \( -name "*.jpg" -o -name "*.png" -o -name "*.gif" \) | wc -l)
-            echo "✅ Found $count images in $dest"
-        fi
+        cp -r "$src"/* "$dest/" 2>/dev/null || {
+            if [ "$VERBOSE" = true ]; then
+                echo "⚠️ Warning: Some files from $src could not be copied"
+            fi
+        }
     elif [ "$VERBOSE" = true ]; then
-        echo "⚠️ No $type images found in $src"
+        echo "⚠️ Warning: Source directory $src not found"
     fi
 }
 
-# Copy common images from various locations
-copy_images "art" "build/images" "artwork"
-copy_images "book/images" "build/images" "common"
-copy_images "images" "build/images" "root"
+# Copy images from all possible locations
+copy_images "art" "build/images"
+copy_images "book/images" "build/images"
+copy_images "book/en/images" "build/en/images"
+copy_images "book/es/images" "build/es/images"
 
-# Copy language-specific images
-copy_images "book/en/images" "build/en/images" "English"
-copy_images "book/es/images" "build/es/images" "Spanish"
-
-# Handle cover image specially
-for cover in "cover.jpg" "cover.png"; do
-    for dir in "." "art" "book/images" "images"; do
-        if [ -f "$dir/$cover" ]; then
-            if [ "$VERBOSE" = true ]; then
-                echo "📔 Found cover image: $dir/$cover"
-            fi
-            cp "$dir/$cover" "build/images/cover.jpg"
-            break
-        fi
-    done
-done
-
-# Ensure all language directories have access to common images
+# Link common images to language directories if they don't exist
 for lang in en es; do
-    if [ -d "build/$lang" ]; then
-        if [ "$VERBOSE" = true ]; then
-            echo "🔄 Linking common images to $lang directory"
-        fi
-        cp -r build/images/* "build/$lang/images/" 2>/dev/null || true
+    if [ -d "build/images" ]; then
+        for img in build/images/*; do
+            if [ -f "$img" ]; then
+                base=$(basename "$img")
+                if [ ! -e "build/$lang/images/$base" ]; then
+                    ln -sf "../../images/$base" "build/$lang/images/$base" 2>/dev/null || {
+                        if [ "$VERBOSE" = true ]; then
+                            echo "⚠️ Warning: Could not create symlink for $base in $lang"
+                        fi
+                    }
+                fi
+            fi
+        done
     fi
 done
 
+# Create placeholder for missing images
+cat > "build/images/placeholder.svg" << 'EOF'
+<svg width="800" height="400" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100%" height="100%" fill="#f0f0f0"/>
+    <text x="50%" y="45%" font-family="Arial" font-size="24" fill="#666" text-anchor="middle">Placeholder Image</text>
+    <text x="50%" y="55%" font-family="Arial" font-size="18" fill="#999" text-anchor="middle">Coming Soon</text>
+</svg>
+EOF
+
+# Count images in each directory
 if [ "$VERBOSE" = true ]; then
-    echo "✅ Image setup completed"
-    echo "📊 Image counts by directory:"
-    for dir in build/images build/en/images build/es/images; do
-        if [ -d "$dir" ]; then
-            count=$(find "$dir" -type f \( -name "*.jpg" -o -name "*.png" -o -name "*.gif" \) | wc -l)
-            echo "  - $dir: $count images"
-        fi
-    done
+    echo "📊 Image setup summary:"
+    echo "Common images: $(find build/images -type f | wc -l)"
+    echo "English images: $(find build/en/images -type f | wc -l)"
+    echo "Spanish images: $(find build/es/images -type f | wc -l)"
 fi

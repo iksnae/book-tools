@@ -23,6 +23,44 @@ fi
 
 # Create build directory for this language
 mkdir -p "build/$LANG"
+mkdir -p "build/$LANG/images"
+
+# Copy images from various locations
+if [ "$VERBOSE" = true ]; then
+    echo "🖼️ Setting up images..."
+fi
+
+# Copy placeholder image for missing images
+cp "book/$LANG/images/placeholder.svg" "build/$LANG/images/" || {
+    echo "⚠️ Warning: Could not copy placeholder image"
+}
+
+# Copy all available images
+for img in $(find "book/$LANG/images" -type f \( -name "*.jpg" -o -name "*.png" -o -name "*.svg" \)); do
+    cp "$img" "build/$LANG/images/" || {
+        echo "⚠️ Warning: Could not copy image $img"
+    }
+done
+
+# Create symlinks for missing images to placeholder
+cd "build/$LANG/images"
+for img in hesitant-beginner.jpg reflection-notebook.jpg first-conversation.jpg kitchen-analogy.jpg \
+           human-ai-partnership.jpg teacher-example.jpg prompt-template.jpg simple-interface.jpg \
+           purpose-meaning.jpg artist-example.jpg information-processing.jpg director-assistant.jpg \
+           bakery-example.jpg senior-genealogy.jpg pattern-matcher.jpg echo-chamber.jpg \
+           foreign-cookbook.jpg probability-prediction.jpg human-judgment.jpg director-mindset.jpg \
+           specific-direction.jpg critical-evaluation.jpg teacher-curriculum.jpg text-generation.jpg \
+           hallucination.jpg ai-misconceptions.jpg verification-principle.jpg directing-process.jpg \
+           hands-on-learning.jpg prompt-specificity.jpg identify-challenge.jpg testing-limitations.jpg \
+           creative-control.jpg personal-guidelines.jpg moving-forward.jpg director-clapperboard.jpg \
+           chatgpt-interface.jpg prompt-anatomy.jpg context-window.jpg; do
+    if [ ! -f "$img" ]; then
+        ln -sf placeholder.svg "$img" || {
+            echo "⚠️ Warning: Could not create symlink for $img"
+        }
+    fi
+done
+cd - > /dev/null
 
 # Copy markdown files
 if [ "$VERBOSE" = true ]; then
@@ -59,7 +97,7 @@ if [ "$SKIP_HTML" != true ]; then
         --standalone \
         --toc \
         --toc-depth=3 \
-        --resource-path="build/$LANG:build/images:build/$LANG/images" \
+        --resource-path="build/$LANG/images:build/images:build/$LANG/images" \
         --css=styles/book.css || {
             echo "❌ Error building HTML version"
             exit 1
@@ -77,8 +115,12 @@ if [ "$SKIP_PDF" != true ]; then
         --output "build/$LANG/$BOOK_TITLE-$LANG.pdf" \
         --toc \
         --toc-depth=3 \
-        --resource-path="build/$LANG:build/images:build/$LANG/images" \
-        --pdf-engine=xelatex || {
+        --resource-path="build/$LANG/images:build/images:build/$LANG/images" \
+        --pdf-engine=xelatex \
+        -V geometry:margin=1in \
+        -V documentclass=report \
+        -V papersize=letter \
+        -V fontsize=11pt || {
             echo "❌ Error building PDF version"
             exit 1
         }
@@ -95,7 +137,7 @@ if [ "$SKIP_EPUB" != true ]; then
         --output "build/$LANG/$BOOK_TITLE-$LANG.epub" \
         --toc \
         --toc-depth=3 \
-        --resource-path="build/$LANG:build/images:build/$LANG/images" \
+        --resource-path="build/$LANG/images:build/images:build/$LANG/images" \
         --epub-cover-image="build/images/cover.jpg" || {
             echo "❌ Error building EPUB version"
             exit 1

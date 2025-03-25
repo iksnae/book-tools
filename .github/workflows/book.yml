@@ -1,0 +1,152 @@
+name: Book Build & Release
+
+on:
+  # Regular builds on push and PR
+  push:
+    branches: [ main, 'fix/*', 'feature/*' ]
+    tags: [ 'v*' ]  # Also trigger on version tags
+    paths:
+      - 'book/**'
+      - 'src/**'
+      - 'book.yaml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'book/**'
+      - 'src/**'
+      - 'book.yaml'
+  # Manual trigger with version input
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. v1.0.0)'
+        required: true
+        default: 'v0.1.0'
+
+# Permissions for creating releases and GitHub Pages
+permissions:
+  contents: write
+  deployments: write
+
+jobs:
+  # Build job - runs for all triggers
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: iksnae/book-builder:latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      date: ${{ steps.version.outputs.date }}
+      book_title: ${{ steps.config.outputs.book_title }}
+      book_author: ${{ steps.config.outputs.book_author }}
+      file_prefix: ${{ steps.config.outputs.file_prefix }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Load configuration from book.yaml
+      - name: Load configuration
+        id: config
+        run: |
+          if [ -f "book.yaml" ]; then
+            echo "Using configuration from book.yaml"
+            BOOK_TITLE=$(grep 'title:' book.yaml | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' | sed 's/\"//g')
+            echo "book_title=$BOOK_TITLE" >> $GITHUB_OUTPUT
+            
+            BOOK_AUTHOR=$(grep 'author:' book.yaml | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' | sed 's/\"//g')
+            echo "book_author=$BOOK_AUTHOR" >> $GITHUB_OUTPUT
+            
+            FILE_PREFIX=$(grep 'file_prefix:' book.yaml | head -n 1 | cut -d':' -f2- | sed 's/^[ \t]*//' | sed 's/\"//g')
+            if [ -z "$FILE_PREFIX" ]; then
+              FILE_PREFIX=$(echo "$BOOK_TITLE" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g')
+            fi
+            echo "file_prefix=$FILE_PREFIX" >> $GITHUB_OUTPUT
+          else
+            echo "book_title=My Book" >> $GITHUB_OUTPUT
+            echo "book_author=Author Name" >> $GITHUB_OUTPUT
+            echo "file_prefix=my-book" >> $GITHUB_OUTPUT
+          fi
+
+      # Set version info for releases
+      - name: Set version info
+        id: version
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            VERSION=${{ github.event.inputs.version }}
+          else
+            VERSION=${GITHUB_REF#refs/tags/}
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "date=$(date +'%B %d, %Y')" >> $GITHUB_OUTPUT
+
+      # Build the book
+      - name: Build book
+        run: |
+          # Make scripts executable
+          chmod +x src/scripts/*.sh
+
+          # Run build with verbose output
+          src/scripts/build.sh --verbose --all-languages
+
+      # Upload artifacts
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: book-outputs
+          path: build/**/*.*
+          if-no-files-found: error
+
+  # Release job - only runs on tag push or manual trigger
+  release:
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: book-outputs
+          path: build
+
+      - name: Create release notes
+        run: |
+          echo "# ${{ needs.build.outputs.book_title || 'Book' }} ${{ needs.build.outputs.version }}" > RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "By ${{ needs.build.outputs.book_author || 'Author' }}" >> RELEASE_NOTES.md
+          echo "Built on ${{ needs.build.outputs.date }}" >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "## 📚 Download Options" >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "| Format | Description | Link |" >> RELEASE_NOTES.md
+          echo "|--------|-------------|------|" >> RELEASE_NOTES.md
+          
+          PREFIX="${{ needs.build.outputs.file_prefix || 'book' }}"
+          
+          # Add links for each format
+          for FORMAT in pdf epub html mobi; do
+            if [ -f "build/en/$PREFIX.$FORMAT" ] || [ -f "build/en/book.$FORMAT" ]; then
+              case $FORMAT in
+                pdf)  DESC="📄 PDF | For reading on computers and printing" ;;
+                epub) DESC="📱 EPUB | For most e-readers and mobile devices" ;;
+                html) DESC="🌐 HTML | Read online in your browser" ;;
+                mobi) DESC="📚 MOBI | For Kindle devices" ;;
+              esac
+              echo "| $DESC | [Download ${FORMAT^^}](https://github.com/${{ github.repository }}/releases/download/${{ needs.build.outputs.version }}/$PREFIX.$FORMAT) |" >> RELEASE_NOTES.md
+            fi
+          done
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: ${{ needs.build.outputs.book_title }} ${{ needs.build.outputs.version }}
+          body_path: RELEASE_NOTES.md
+          files: |
+            build/en/*.pdf
+            build/en/*.epub
+            build/en/*.mobi
+            build/en/*.html
+          draft: false
+          prerelease: false 

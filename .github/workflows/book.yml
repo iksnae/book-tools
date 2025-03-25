@@ -72,12 +72,13 @@ jobs:
       - name: Set version info
         id: version
         run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
             VERSION=${{ github.event.inputs.version }}
-          elif [ "${{ github.event_name }}" == "push" ] && [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+          elif [ "$GITHUB_EVENT_NAME" = "push" ] && [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             VERSION=${GITHUB_REF#refs/tags/}
           else
             # Generate version from commit hash if no explicit version
+            git config --global --add safe.directory "$GITHUB_WORKSPACE"
             SHORT_SHA=$(git rev-parse --short HEAD)
             BRANCH=${GITHUB_REF#refs/heads/}
             VERSION="dev-${BRANCH}-${SHORT_SHA}"

@@ -3,7 +3,8 @@ name: Book Build & Release
 on:
   # Regular builds on push and PR
   push:
-    branches: [ main, 'fix/*', 'feature/*' ]
+    branches:
+      - '**'  # Build on all branches
     tags: [ 'v*' ]  # Also trigger on version tags
     paths:
       - 'book/**'
@@ -101,10 +102,10 @@ jobs:
           path: build/**/*.*
           if-no-files-found: error
 
-  # Release job - only runs on tag push or manual trigger
+  # Release job - only runs on tag push or manual trigger from main branch
   release:
     needs: build
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.ref_name == 'main') || (github.event_name == 'workflow_dispatch' && github.ref_name == 'main')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

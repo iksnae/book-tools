@@ -157,6 +157,34 @@ elif [ "$SKIP_MOBI" != true ]; then
     echo "⚠️ Skipping MOBI: calibre not installed"
 fi
 
+# Build DOCX version
+if [ "$SKIP_DOCX" != true ]; then
+    if [ "$VERBOSE" = true ]; then
+        echo "📄 Building DOCX version..."
+    fi
+    
+    # Look for a reference document
+    REFERENCE_DOC=""
+    if [ -f "templates/docx/reference.docx" ]; then
+        REFERENCE_DOC="--reference-doc=templates/docx/reference.docx"
+    elif [ -f "resources/templates/docx/reference.docx" ]; then
+        REFERENCE_DOC="--reference-doc=resources/templates/docx/reference.docx"
+    fi
+
+    # Build DOCX with reference if available
+    pandoc "build/$LANG"/*.md \
+        --from markdown \
+        --to docx \
+        --output "build/$LANG/$BOOK_TITLE-$LANG.docx" \
+        --toc \
+        --toc-depth=3 \
+        --resource-path="build/$LANG/images:build/images:build/$LANG/images" \
+        $REFERENCE_DOC || {
+            echo "❌ Error building DOCX version"
+            exit 1
+        }
+fi
+
 if [ "$VERBOSE" = true ]; then
     echo "✅ Build completed for language: $LANG"
     ls -lh "build/$LANG"

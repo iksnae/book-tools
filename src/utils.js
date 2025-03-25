@@ -156,6 +156,13 @@ function createPandocCommand(config, inputPath, outputPath, format, language, re
     command.push(`--resource-path="${resourcePaths}"`);
   }
   
+  // Special handling for EPUB - ensure we explicitly extract media
+  if (format === 'epub') {
+    const mediaDir = path.join(path.dirname(outputPath), 'media');
+    ensureDirectoryExists(mediaDir);
+    command.push(`--extract-media="${mediaDir}"`);
+  }
+  
   // For DOCX, check if reference_doc exists and add error handler if not
   if (format === 'docx') {
     const docxSettings = config.formatSettings?.docx || config.docx || {};

@@ -132,17 +132,47 @@ if [ "$SKIP_EPUB" != true ]; then
         COVER_ARG="--epub-cover-image=build/images/cover.png"
     fi
 
+    # Create extract media directory for ensuring images are included
+    MEDIA_DIR="build/$LANG/media"
+    mkdir -p "$MEDIA_DIR"
+
+    # Define all image search paths
+    IMAGE_PATHS=(
+        "build/$LANG/images"
+        "build/images"
+        "book/$LANG/images"
+        "book/images"
+        "resources/images"
+    )
+    
+    # Build the resource path string for pandoc
+    RESOURCE_PATH=$(IFS=:; echo "${IMAGE_PATHS[*]}")
+    
+    if [ "$VERBOSE" = true ]; then
+        echo "Using resource paths: $RESOURCE_PATH"
+        echo "Extracting media to: $MEDIA_DIR"
+    fi
+
     pandoc "$COMBINED_MD" \
         --from markdown \
         --to epub \
         --output "build/$LANG/$BOOK_TITLE-$LANG.epub" \
         --toc \
         --toc-depth=3 \
-        --resource-path="build/$LANG/images:build/images:build/$LANG/images" \
+        --extract-media="$MEDIA_DIR" \
+        --resource-path="$RESOURCE_PATH" \
         $COVER_ARG || {
             echo "❌ Error building EPUB version"
             exit 1
         }
+
+    # Check if EPUB was generated with correct size
+    if [ -f "build/$LANG/$BOOK_TITLE-$LANG.epub" ]; then
+        EPUB_SIZE=$(du -h "build/$LANG/$BOOK_TITLE-$LANG.epub" | cut -f1)
+        if [ "$VERBOSE" = true ]; then
+            echo "✅ EPUB generated successfully: build/$LANG/$BOOK_TITLE-$LANG.epub (Size: $EPUB_SIZE)"
+        fi
+    fi
 fi
 
 # Build MOBI version if not skipped and calibre is available

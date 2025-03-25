@@ -9,6 +9,25 @@ const {
   createPandocCommand
 } = require('./utils');
 const { validate } = require('./validate');
+const { execSync, exec } = require('child_process');
+
+/**
+ * Promise wrapper for exec
+ * 
+ * @param {string} command - Command to execute
+ * @returns {Promise<{stdout: string, stderr: string}>} - Promise with stdout and stderr
+ */
+function execPromise(command) {
+  return new Promise((resolve, reject) => {
+    exec(command, (error, stdout, stderr) => {
+      if (error && error.code !== 0) {
+        reject(error);
+      } else {
+        resolve({ stdout, stderr });
+      }
+    });
+  });
+}
 
 /**
  * Build a book in the specified format(s) with extended configuration support
@@ -183,31 +202,43 @@ async function buildFormat(config, inputPath, outputPath, format, language, proj
   
   // For PDF, EPUB, HTML, and DOCX, use pandoc
   if (format === 'pdf' || format === 'epub' || format === 'html' || format === 'docx') {
-    const command = createPandocCommand(config, inputPath, outputPath, format, language, resourcePaths);
+    // Create pandoc command
+    const { createPandocCommand } = require('./utils');
     
+    // Add extract media option for EPUB format to ensure images are embedded
+    let command = createPandocCommand(config, inputPath, outputPath, format, language, resourcePaths);
+    
+    if (format === 'epub') {
+      // Create media directory for extracting images during EPUB generation
+      const mediaDir = path.join(path.dirname(outputPath), 'media');
+      fs.mkdirSync(mediaDir, { recursive: true });
+      
+      // Add extract-media flag to ensure all images are properly embedded
+      command = command.replace(' pandoc ', ' pandoc --extract-media="' + mediaDir + '" ');
+    }
+    
+    // Execute pandoc command
     try {
-      const result = await runCommand(command);
-      if (result.stderr) {
-        console.warn(`Warnings during ${format} generation: ${result.stderr}`);
+      const { stdout, stderr } = await execPromise(command);
+      
+      if (stderr && stderr.includes('Error')) {
+        console.error(`Error generating ${format.toUpperCase()}:`, stderr);
+        return false;
       }
+      
+      if (format === 'epub' && config.verbose) {
+        console.log(`EPUB generated successfully: ${outputPath}`);
+        
+        // Get file size
+        const stats = fs.statSync(outputPath);
+        const fileSizeMB = (stats.size / (1024 * 1024)).toFixed(2);
+        console.log(`File size: ${fileSizeMB} MB`);
+      }
+      
       return true;
     } catch (error) {
-      // Try with fallback settings if there's an error
-      if (config.formatSettings?.[format]?.fallback !== false) {
-        console.warn(`Error in ${format} generation, trying with fallback settings`);
-        try {
-          // Create a minimal pandoc command without custom settings
-          const formatType = format === 'pdf' ? 'latex' : format;
-          const fallbackCmd = `pandoc "${inputPath}" -o "${outputPath}" -t ${formatType} --metadata=title:"${config.title}" --metadata=author:"${config.author}" --metadata=lang:"${language}"`;
-          await runCommand(fallbackCmd);
-          console.warn(`Fallback ${format} generation succeeded`);
-          return true;
-        } catch (fallbackError) {
-          throw new Error(`Both primary and fallback ${format} generation failed: ${fallbackError.message}`);
-        }
-      } else {
-        throw error;
-      }
+      console.error(`Error executing ${format.toUpperCase()} command:`, error.message || error);
+      return false;
     }
   } else if (format === 'mobi') {
     // For MOBI, we need EPUB first

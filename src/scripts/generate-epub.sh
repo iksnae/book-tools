@@ -67,13 +67,27 @@ elif [ -f "$PROJECT_ROOT/$RESOURCES_DIR/images/cover.png" ]; then
     COVER_IMAGE="--epub-cover-image=$PROJECT_ROOT/$RESOURCES_DIR/images/cover.png"
 fi
 
-# Create a variable for image path
-IMAGE_PATH="$PROJECT_ROOT/$RESOURCES_DIR/images"
+# Create extract media directory for ensuring images are included
+MEDIA_DIR=$(dirname "$OUTPUT_FILE")/media
+mkdir -p "$MEDIA_DIR"
+
+# Define all image search paths
+IMAGE_PATHS=(
+    "$PROJECT_ROOT/$RESOURCES_DIR/images"
+    "$PROJECT_ROOT/book/images"
+    "$PROJECT_ROOT/book/$LANGUAGE/images"
+    "$PROJECT_ROOT/build/images"
+    "$PROJECT_ROOT/build/$LANGUAGE/images"
+)
+
+# Build the resource path string
+RESOURCE_PATH=$(IFS=:; echo "${IMAGE_PATHS[*]}")
 
 echo "Generating EPUB file: $OUTPUT_FILE"
 echo "Using EPUB template: ${EPUB_TEMPLATE:-None}"
 echo "Using EPUB style: ${EPUB_STYLE:-None}"
 echo "Using cover image: ${COVER_IMAGE:-None}"
+echo "Using resource paths: $RESOURCE_PATH"
 echo "Author: $AUTHOR"
 echo "Publisher: $PUBLISHER"
 
@@ -91,7 +105,8 @@ pandoc "$INPUT_FILE" \
     --toc-depth=3 \
     --epub-chapter-level=2 \
     --highlight-style=tango \
-    --resource-path="$IMAGE_PATH" \
+    --extract-media="$MEDIA_DIR" \
+    --resource-path="$RESOURCE_PATH" \
     $EPUB_TEMPLATE \
     $EPUB_STYLE \
     $COVER_IMAGE

@@ -11,6 +11,7 @@ SKIP_PDF=false
 SKIP_EPUB=false
 SKIP_MOBI=false
 SKIP_HTML=false
+SKIP_DOCX=false
 VERBOSE=false
 
 while [[ $# -gt 0 ]]; do
@@ -35,6 +36,10 @@ while [[ $# -gt 0 ]]; do
       SKIP_HTML=true
       shift
       ;;
+    --skip-docx)
+      SKIP_DOCX=true
+      shift
+      ;;
     --verbose)
       VERBOSE=true
       shift
@@ -51,6 +56,7 @@ export SKIP_PDF
 export SKIP_EPUB
 export SKIP_MOBI
 export SKIP_HTML
+export SKIP_DOCX
 export VERBOSE
 
 # Ensure we're in the book directory

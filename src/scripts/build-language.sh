@@ -30,59 +30,47 @@ if [ "$VERBOSE" = true ]; then
     echo "🖼️ Setting up images..."
 fi
 
-# Copy placeholder image for missing images
-cp "book/$LANG/images/placeholder.svg" "build/$LANG/images/" || {
-    echo "⚠️ Warning: Could not copy placeholder image"
-}
+# Copy placeholder image for missing images if it exists
+if [ -f "book/$LANG/images/placeholder.svg" ]; then
+    cp "book/$LANG/images/placeholder.svg" "build/$LANG/images/" || {
+        echo "⚠️ Warning: Could not copy placeholder image"
+    }
+fi
 
 # Copy all available images
-for img in $(find "book/$LANG/images" -type f \( -name "*.jpg" -o -name "*.png" -o -name "*.svg" \)); do
-    cp "$img" "build/$LANG/images/" || {
-        echo "⚠️ Warning: Could not copy image $img"
-    }
-done
-
-# Create symlinks for missing images to placeholder
-cd "build/$LANG/images"
-for img in hesitant-beginner.jpg reflection-notebook.jpg first-conversation.jpg kitchen-analogy.jpg \
-           human-ai-partnership.jpg teacher-example.jpg prompt-template.jpg simple-interface.jpg \
-           purpose-meaning.jpg artist-example.jpg information-processing.jpg director-assistant.jpg \
-           bakery-example.jpg senior-genealogy.jpg pattern-matcher.jpg echo-chamber.jpg \
-           foreign-cookbook.jpg probability-prediction.jpg human-judgment.jpg director-mindset.jpg \
-           specific-direction.jpg critical-evaluation.jpg teacher-curriculum.jpg text-generation.jpg \
-           hallucination.jpg ai-misconceptions.jpg verification-principle.jpg directing-process.jpg \
-           hands-on-learning.jpg prompt-specificity.jpg identify-challenge.jpg testing-limitations.jpg \
-           creative-control.jpg personal-guidelines.jpg moving-forward.jpg director-clapperboard.jpg \
-           chatgpt-interface.jpg prompt-anatomy.jpg context-window.jpg; do
-    if [ ! -f "$img" ]; then
-        ln -sf placeholder.svg "$img" || {
-            echo "⚠️ Warning: Could not create symlink for $img"
-        }
-    fi
-done
-cd - > /dev/null
-
-# Copy markdown files
-if [ "$VERBOSE" = true ]; then
-    echo "📝 Copying markdown files..."
-fi
-
-# First check if there are any markdown files
-MD_FILES=$(find "book/$LANG" -maxdepth 1 -name "*.md" | wc -l)
-if [ "$MD_FILES" -eq 0 ]; then
-    echo "❌ Error: No markdown files found in book/$LANG"
-    exit 1
-fi
-
-# Copy the files
-cp "book/$LANG"/*.md "build/$LANG/" || {
-    echo "❌ Error copying markdown files"
-    exit 1
+find "book/$LANG" -type f \( -name "*.jpg" -o -name "*.png" -o -name "*.svg" \) -exec cp {} "build/$LANG/images/" \; || {
+    echo "⚠️ Warning: Some images could not be copied"
 }
 
+# Combine markdown files using combine-markdown.sh
 if [ "$VERBOSE" = true ]; then
-    echo "✅ Found and copied $MD_FILES markdown files"
-    ls -l "build/$LANG"/*.md
+    echo "📝 Combining markdown files..."
+fi
+
+# Get book metadata for the combined file
+BOOK_YAML="book.yaml"
+if [ -f "$BOOK_YAML" ]; then
+    BOOK_TITLE=$(grep "^title:" "$BOOK_YAML" | cut -d ':' -f 2- | sed 's/^[ \t]*//' | tr -d '"')
+    BOOK_SUBTITLE=$(grep "^subtitle:" "$BOOK_YAML" | cut -d ':' -f 2- | sed 's/^[ \t]*//' | tr -d '"')
+else
+    BOOK_TITLE="Book"
+    BOOK_SUBTITLE="A Book"
+fi
+
+# Combine the markdown files using the dedicated script
+# This handles chapter-based directories and creates a single combined markdown file
+COMBINED_MD="build/$LANG/combined.md"
+SCRIPTS_PATH=$(dirname "$0")
+"$SCRIPTS_PATH/combine-markdown.sh" "$LANG" "$COMBINED_MD" "$BOOK_TITLE" "$BOOK_SUBTITLE" "$(pwd)"
+
+# Verify the combined markdown file was created
+if [ ! -f "$COMBINED_MD" ]; then
+    echo "❌ Error: Failed to create combined markdown file"
+    exit 1
+fi
+
+if [ "$VERBOSE" = true ]; then
+    echo "✅ Created combined markdown file: $COMBINED_MD"
 fi
 
 # Build HTML version
@@ -90,7 +78,7 @@ if [ "$SKIP_HTML" != true ]; then
     if [ "$VERBOSE" = true ]; then
         echo "🌐 Building HTML version..."
     fi
-    pandoc "build/$LANG"/*.md \
+    pandoc "$COMBINED_MD" \
         --from markdown \
         --to html5 \
         --output "build/$LANG/$BOOK_TITLE-$LANG.html" \
@@ -109,7 +97,7 @@ if [ "$SKIP_PDF" != true ]; then
     if [ "$VERBOSE" = true ]; then
         echo "📄 Building PDF version..."
     fi
-    pandoc "build/$LANG"/*.md \
+    pandoc "$COMBINED_MD" \
         --from markdown \
         --to pdf \
         --output "build/$LANG/$BOOK_TITLE-$LANG.pdf" \
@@ -131,14 +119,27 @@ if [ "$SKIP_EPUB" != true ]; then
     if [ "$VERBOSE" = true ]; then
         echo "📱 Building EPUB version..."
     fi
-    pandoc "build/$LANG"/*.md \
+
+    # Check for cover image
+    COVER_ARG=""
+    if [ -f "build/images/cover.jpg" ]; then
+        COVER_ARG="--epub-cover-image=build/images/cover.jpg"
+    elif [ -f "book/images/cover.jpg" ]; then
+        cp "book/images/cover.jpg" "build/images/"
+        COVER_ARG="--epub-cover-image=build/images/cover.jpg"
+    elif [ -f "book/images/cover.png" ]; then
+        cp "book/images/cover.png" "build/images/"
+        COVER_ARG="--epub-cover-image=build/images/cover.png"
+    fi
+
+    pandoc "$COMBINED_MD" \
         --from markdown \
         --to epub \
         --output "build/$LANG/$BOOK_TITLE-$LANG.epub" \
         --toc \
         --toc-depth=3 \
         --resource-path="build/$LANG/images:build/images:build/$LANG/images" \
-        --epub-cover-image="build/images/cover.jpg" || {
+        $COVER_ARG || {
             echo "❌ Error building EPUB version"
             exit 1
         }
@@ -172,7 +173,7 @@ if [ "$SKIP_DOCX" != true ]; then
     fi
 
     # Build DOCX with reference if available
-    pandoc "build/$LANG"/*.md \
+    pandoc "$COMBINED_MD" \
         --from markdown \
         --to docx \
         --output "build/$LANG/$BOOK_TITLE-$LANG.docx" \

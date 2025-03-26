@@ -59,17 +59,83 @@ if [ -f "$PROJECT_ROOT/$RESOURCES_DIR/css/epub.css" ]; then
     EPUB_STYLE="--css=$PROJECT_ROOT/$RESOURCES_DIR/css/epub.css"
 fi
 
-# Check for cover image
+# Check for cover image (look in multiple locations)
 COVER_IMAGE=""
-if [ -f "$PROJECT_ROOT/$RESOURCES_DIR/images/cover.jpg" ]; then
-    COVER_IMAGE="--epub-cover-image=$PROJECT_ROOT/$RESOURCES_DIR/images/cover.jpg"
-elif [ -f "$PROJECT_ROOT/$RESOURCES_DIR/images/cover.png" ]; then
-    COVER_IMAGE="--epub-cover-image=$PROJECT_ROOT/$RESOURCES_DIR/images/cover.png"
-fi
+COVER_PATHS=(
+    "$PROJECT_ROOT/$RESOURCES_DIR/images/cover.jpg"
+    "$PROJECT_ROOT/$RESOURCES_DIR/images/cover.png"
+    "$PROJECT_ROOT/art/cover.png"
+    "$PROJECT_ROOT/art/cover.jpg"
+    "$PROJECT_ROOT/book/images/cover.png"
+    "$PROJECT_ROOT/book/images/cover.jpg"
+    "$PROJECT_ROOT/book/$LANGUAGE/images/cover.png"
+    "$PROJECT_ROOT/book/$LANGUAGE/images/cover.jpg"
+    "$PROJECT_ROOT/build/images/cover.png"
+    "$PROJECT_ROOT/build/images/cover.jpg"
+    "$PROJECT_ROOT/build/$LANGUAGE/images/cover.png"
+    "$PROJECT_ROOT/build/$LANGUAGE/images/cover.jpg"
+)
+
+for cover_path in "${COVER_PATHS[@]}"; do
+    if [ -f "$cover_path" ]; then
+        COVER_IMAGE="--epub-cover-image=$cover_path"
+        echo "Found cover image: $cover_path"
+        break
+    fi
+done
 
 # Create extract media directory for ensuring images are included
 MEDIA_DIR=$(dirname "$OUTPUT_FILE")/media
 mkdir -p "$MEDIA_DIR"
+
+# Enhanced implementation for image copying to ensure all images are found
+echo "Ensuring all images are available for EPUB..."
+
+# Find all image references in the markdown
+REFERENCES=$(grep -o -E '!\[.*?\]\((.*?)\)' "$INPUT_FILE" | sed -E 's/!\[.*?\]\((.*?)\)/\1/g' | sort -u)
+
+# Copy all referenced images to the media directory to ensure they're included
+echo "Referenced images:"
+for img_ref in $REFERENCES; do
+    # Get the basename of the image
+    img_name=$(basename "$img_ref")
+    echo "- $img_name (from reference: $img_ref)"
+    
+    # Search for the image in various possible locations
+    found=0
+    
+    # List of potential image locations, from most specific to most general
+    img_locations=(
+        "$(dirname "$INPUT_FILE")/$img_ref"
+        "$PROJECT_ROOT/book/$LANGUAGE/chapter-*/images/$img_name"
+        "$PROJECT_ROOT/book/$LANGUAGE/images/$img_name"
+        "$PROJECT_ROOT/book/images/$img_name"
+        "$PROJECT_ROOT/art/$img_name"
+        "$PROJECT_ROOT/build/images/$img_name"
+        "$PROJECT_ROOT/build/$LANGUAGE/images/$img_name"
+        "$PROJECT_ROOT/$RESOURCES_DIR/images/$img_name"
+    )
+    
+    for img_path in "${img_locations[@]}"; do
+        # Use globbing to expand wildcards if present
+        for resolved_path in $img_path; do
+            if [ -f "$resolved_path" ]; then
+                echo "  Found at: $resolved_path"
+                # Create the directory structure in media dir
+                mkdir -p "$MEDIA_DIR/$(dirname "$img_ref")"
+                # Copy the image to the media directory
+                cp "$resolved_path" "$MEDIA_DIR/$img_ref"
+                found=1
+                break
+            fi
+        done
+        [ $found -eq 1 ] && break
+    done
+    
+    if [ $found -eq 0 ]; then
+        echo "  ⚠️ Warning: Image $img_ref not found in any search location"
+    fi
+done
 
 # Define all image search paths
 IMAGE_PATHS=(
@@ -78,7 +144,17 @@ IMAGE_PATHS=(
     "$PROJECT_ROOT/book/$LANGUAGE/images"
     "$PROJECT_ROOT/build/images"
     "$PROJECT_ROOT/build/$LANGUAGE/images"
+    "$PROJECT_ROOT/art"
+    "$MEDIA_DIR"
+    "$(dirname "$INPUT_FILE")"
 )
+
+# Add all chapter image directories to search path
+for chapter_dir in "$PROJECT_ROOT/book/$LANGUAGE/chapter-"*/; do
+    if [ -d "$chapter_dir/images" ]; then
+        IMAGE_PATHS+=("$chapter_dir/images")
+    fi
+done
 
 # Build the resource path string
 RESOURCE_PATH=$(IFS=:; echo "${IMAGE_PATHS[*]}")

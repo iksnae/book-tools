@@ -36,11 +36,25 @@ function execPromise(command) {
  * @param {boolean} [options.allLanguages=false] - Whether to build for all languages
  * @param {string} [options.language='en'] - Language to build for
  * @param {Array<string>} [options.formats=['pdf']] - Formats to build
+ * @param {string} [options.projectPath] - Optional path to project root
  * @returns {Promise<Object>} - Build result
  */
 async function buildBook(options = {}) {
   try {
-    const projectRoot = findProjectRoot();
+    let projectRoot;
+    
+    if (options.projectPath) {
+      projectRoot = path.resolve(options.projectPath);
+    } else {
+      try {
+        projectRoot = findProjectRoot();
+      } catch (error) {
+        // If finding project root fails, use current directory as default
+        projectRoot = path.resolve('.');
+        console.log(`No book.yaml found in parent directories. Using current directory as project root.`);
+      }
+    }
+    
     const config = loadBookConfig(projectRoot);
     
     const languages = options.allLanguages 
@@ -542,7 +556,19 @@ async function buildBookWithRecovery(options = {}) {
  * @returns {Promise<Object>} - Emergency files created
  */
 async function createEmergencyOutput(options) {
-  const projectRoot = findProjectRoot();
+  let projectRoot;
+  
+  if (options.projectPath) {
+    projectRoot = path.resolve(options.projectPath);
+  } else {
+    try {
+      projectRoot = findProjectRoot();
+    } catch (error) {
+      // If finding project root fails, use current directory as default
+      projectRoot = path.resolve('.');
+    }
+  }
+  
   const language = options.language || 'en';
   const fileNames = buildFileNames(language, projectRoot);
   

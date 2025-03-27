@@ -23,8 +23,8 @@ function configureCLI() {
 
   // Build command
   program
-    .command('build')
-    .description('Build the book in various formats')
+    .command('build [projectPath]')
+    .description('Build the book in various formats. Optionally specify project path')
     .option('--all-languages', 'Build for all configured languages')
     .option('--lang <language>', 'Specify language to build (default: "en")')
     .option('--skip-pdf', 'Skip PDF generation')
@@ -34,7 +34,7 @@ function configureCLI() {
     .option('--skip-docx', 'Skip DOCX generation')
     .option('--with-recovery', 'Enable enhanced error recovery')
     .option('--verbose', 'Show verbose output')
-    .action(async (options) => {
+    .action(async (projectPath, options) => {
       const spinner = ora('Building book...').start();
       try {
         const formats = [];
@@ -48,7 +48,8 @@ function configureCLI() {
           allLanguages: options.allLanguages,
           language: options.lang || 'en',
           formats,
-          verbose: options.verbose
+          verbose: options.verbose,
+          projectPath
         };
 
         // Use enhanced error recovery if requested

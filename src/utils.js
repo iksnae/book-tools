@@ -32,7 +32,73 @@ function findProjectRoot() {
  */
 function loadBookConfig(projectRoot) {
   const configPath = path.join(projectRoot, 'book.yaml');
+  
+  // If the config file doesn't exist, create a default one
+  if (!fs.existsSync(configPath)) {
+    console.log(`No book.yaml found in ${projectRoot}. Creating a default configuration.`);
+    createDefaultConfig(projectRoot);
+  }
+  
   return loadConfig(configPath);
+}
+
+/**
+ * Create a default book.yaml file
+ * 
+ * @param {string} projectRoot - Path to the project root
+ */
+function createDefaultConfig(projectRoot) {
+  const configPath = path.join(projectRoot, 'book.yaml');
+  const defaultConfig = `title: "Untitled Book"
+subtitle: "A new book project"
+author: "Author Name"
+file_prefix: "book"
+languages: [en]
+
+# Output format settings
+pdf:
+  enabled: true
+  fontsize: 11pt
+  papersize: letter
+  margin: 1in
+  lineheight: 1.5
+
+epub:
+  enabled: true
+
+mobi:
+  enabled: true
+
+html:
+  enabled: true
+
+docx:
+  enabled: true
+`;
+
+  // Create the file
+  fs.writeFileSync(configPath, defaultConfig);
+  
+  // Also create the basic directory structure
+  ensureDirectoryExists(path.join(projectRoot, 'book', 'en'));
+  ensureDirectoryExists(path.join(projectRoot, 'book', 'en', 'chapter-01'));
+  ensureDirectoryExists(path.join(projectRoot, 'book', 'en', 'images'));
+  ensureDirectoryExists(path.join(projectRoot, 'build'));
+  
+  // Create a sample chapter
+  const sampleChapterPath = path.join(projectRoot, 'book', 'en', 'chapter-01', '01-introduction.md');
+  const sampleChapterContent = `# Introduction
+
+This is a sample chapter created automatically by Book Tools.
+
+## Getting Started
+
+Edit this file and add your own content to get started.
+`;
+  
+  if (!fs.existsSync(sampleChapterPath)) {
+    fs.writeFileSync(sampleChapterPath, sampleChapterContent);
+  }
 }
 
 /**
@@ -184,5 +250,6 @@ module.exports = {
   buildFileNames,
   runScript,
   runCommand,
-  createPandocCommand
+  createPandocCommand,
+  createDefaultConfig
 };

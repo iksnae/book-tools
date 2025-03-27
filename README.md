@@ -161,9 +161,14 @@ To build a book in various formats:
    # Using the CLI
    book-tools build
    
+   # Build a book from a specific path
+   book-tools build /path/to/your/book
+   
    # OR, if manually installed
    ./src/scripts/build.sh
    ```
+
+> **Note**: If you run the build command without a path and no `book.yaml` is found in the current directory or any parent directory, the system will use the current directory as the project root and automatically create a default `book.yaml` and sample chapter structure.
 
 #### Using Docker (Recommended)
 
@@ -251,46 +256,61 @@ your-book-project/
 
 ## Configuration
 
-Create a `book.yaml` file with the following structure:
+The `book.yaml` file controls all aspects of your book build:
 
 ```yaml
+# Book metadata
 title: "Your Book Title"
-subtitle: "Your Book Subtitle"
+subtitle: "An optional subtitle"
 author: "Your Name"
-publisher: "Your Publisher"
-rights: "Copyright © 2023"
-description: "A description of your book."
-languages: [en, es, fr]  # Languages to build
+publisher: "Publisher Name"
+year: "2025"
+language: "en"  # Main language code
 
-# PDF Settings
-pdf:
-  enabled: true
-  fontsize: 12pt
-  papersize: letter  # a4, letter, etc.
-  margin: 1in
-  lineheight: 1.5
+# File naming
+file_prefix: "your-book"  # Used for output filenames (e.g., your-book.pdf)
 
-# EPUB Settings
-epub:
-  enabled: true
-  css: "resources/css/epub.css"
-  cover_image: "resources/images/cover.jpg"
-
-# MOBI Settings
-mobi:
-  enabled: true
-
-# HTML Settings
-html:
-  enabled: true
-  css: "resources/css/html.css"
-  template: "resources/templates/html.template"
+# Output formats to generate
+formats:
+  pdf: true
+  epub: true
+  mobi: true
+  html: true
+  docx: true
   
-# DOCX Settings
-docx:
-  enabled: true
-  reference_doc: "resources/templates/docx/reference.docx"  # Optional reference document
+# Languages to build
+languages:
+  - "en"
+  - "es"  # Uncomment to enable Spanish
+  
+# Format-specific settings
+pdf:
+  paperSize: "letter"
+  marginTop: "1in"
+  fontSize: "11pt"
+  lineHeight: "1.5"
+  
+epub:
+  coverImage: "book/images/cover.png"
+  css: "templates/epub/style.css"
 ```
+
+### File Naming
+
+The `file_prefix` setting in your `book.yaml` controls the filenames of your generated book files. For example, if you set:
+
+```yaml
+file_prefix: "my-awesome-book"
+```
+
+Your output files will be named:
+- `my-awesome-book.pdf`
+- `my-awesome-book.epub`
+- `my-awesome-book.mobi`
+- `my-awesome-book.html`
+- `my-awesome-book.docx`
+
+If not specified, the default behavior is to use `book` as the file prefix.
 
 ## Testing
 

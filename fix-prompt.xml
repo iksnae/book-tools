@@ -1,0 +1,30 @@
+
+<prompt>
+    <context>
+    we are working on the book: Actual  Intelligence. 
+    It is written in markdown and stored in GitHub repo: `iksnae/actual-intelligence`.
+    Leveraging GitHub Actions and the `build` github workflow automatically compiles the book in multiple formats, which are bundled as a release in the same repo. 
+    Recently, we started to switch our build dependencies from local scripts, to using our custom `book-tools` solution in concert with our custom docker image `book-builder`.
+
+    These are respectively defined in their GitHub repositories, which are also ours and your have direct access to:
+    - `book-tools`: `iksnae/book-tools` - Custom Book Building CLI that with relies on `book-builder` image.
+    - `book-builder`: `iksane/book-builder` - Custom Docker Image providing dependencies and build environment.    
+    We have made the migration from custom scripts in the `actual-intelligence` book repo, however in the process we lost support for cover and in-book images, which worked before this migration.
+    
+    The last commit in `actual-intelligence` that leveraged the scripts and built book with images was: `5fd450bb61c8aeb167441079f4df67480f29ef86`.
+    Those local scripts were removed from this repo during the migration, but are still in the repository's history. 
+    Placeholder images were NEVER including in the design of this solution. NEVER EVER user placeholder images of artwork.
+    </context>
+
+    <task>
+        <step>locate the logic that used to assure images we included in the epub build in mentioned commit and earlier.</step>
+        <step>examine `book-tools` script for creating epub to determine missing logic</step>
+        <step>create a minimal fix to the `book-tools` logic</step>
+    </task>
+
+    <notes>
+        - never use browser, search or other tools for accessing github resources: use tools.
+        - create changes in a new branch and submit pull request.
+    </notes>
+
+</prompt>

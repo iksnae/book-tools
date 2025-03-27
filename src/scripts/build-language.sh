@@ -55,9 +55,21 @@ BOOK_YAML="$PROJECT_ROOT/book.yaml"
 if [ -f "$BOOK_YAML" ]; then
     BOOK_TITLE=$(grep "^title:" "$BOOK_YAML" | cut -d ':' -f 2- | sed 's/^[ \t]*//' | tr -d '"')
     BOOK_SUBTITLE=$(grep "^subtitle:" "$BOOK_YAML" | cut -d ':' -f 2- | sed 's/^[ \t]*//' | tr -d '"')
+    # Get file_prefix from book.yaml or use 'book' as default
+    FILE_PREFIX=$(grep "^file_prefix:" "$BOOK_YAML" | cut -d ':' -f 2- | sed 's/^[ \t]*//' | tr -d '"')
+    if [ -z "$FILE_PREFIX" ]; then
+        # Default to 'book' if file_prefix not set
+        FILE_PREFIX="book"
+    fi
 else
     BOOK_TITLE="Book"
     BOOK_SUBTITLE="A Book"
+    FILE_PREFIX="book"
+fi
+
+if [ "$VERBOSE" = true ]; then
+    echo "📚 Book title: $BOOK_TITLE"
+    echo "📄 File prefix: $FILE_PREFIX"
 fi
 
 # Combine the markdown files using the dedicated script
@@ -84,7 +96,7 @@ if [ "$SKIP_HTML" != true ]; then
     pandoc "$COMBINED_MD" \
         --from markdown \
         --to html5 \
-        --output "$PROJECT_ROOT/build/$LANG/$BOOK_TITLE-$LANG.html" \
+        --output "$PROJECT_ROOT/build/$LANG/$FILE_PREFIX.html" \
         --standalone \
         --toc \
         --toc-depth=3 \
@@ -103,7 +115,7 @@ if [ "$SKIP_PDF" != true ]; then
     pandoc "$COMBINED_MD" \
         --from markdown \
         --to pdf \
-        --output "$PROJECT_ROOT/build/$LANG/$BOOK_TITLE-$LANG.pdf" \
+        --output "$PROJECT_ROOT/build/$LANG/$FILE_PREFIX.pdf" \
         --toc \
         --toc-depth=3 \
         --resource-path="$RESOURCE_PATH" \
@@ -128,17 +140,17 @@ if [ "$SKIP_EPUB" != true ]; then
     "$SCRIPTS_PATH/generate-epub.sh" \
         "$LANG" \
         "$COMBINED_MD" \
-        "$PROJECT_ROOT/build/$LANG/$BOOK_TITLE-$LANG.epub" \
+        "$PROJECT_ROOT/build/$LANG/$FILE_PREFIX.epub" \
         "$BOOK_TITLE" \
         "$BOOK_SUBTITLE" \
         "resources" \
         "$PROJECT_ROOT"
 
     # Check if EPUB was generated with correct size
-    if [ -f "$PROJECT_ROOT/build/$LANG/$BOOK_TITLE-$LANG.epub" ]; then
-        EPUB_SIZE=$(du -h "$PROJECT_ROOT/build/$LANG/$BOOK_TITLE-$LANG.epub" | cut -f1)
+    if [ -f "$PROJECT_ROOT/build/$LANG/$FILE_PREFIX.epub" ]; then
+        EPUB_SIZE=$(du -h "$PROJECT_ROOT/build/$LANG/$FILE_PREFIX.epub" | cut -f1)
         if [ "$VERBOSE" = true ]; then
-            echo "✅ EPUB generated successfully: build/$LANG/$BOOK_TITLE-$LANG.epub (Size: $EPUB_SIZE)"
+            echo "✅ EPUB generated successfully: build/$LANG/$FILE_PREFIX.epub (Size: $EPUB_SIZE)"
         fi
     fi
 fi
@@ -148,8 +160,8 @@ if [ "$SKIP_MOBI" != true ] && command -v ebook-convert >/dev/null; then
     if [ "$VERBOSE" = true ]; then
         echo "📱 Building MOBI version..."
     fi
-    ebook-convert "$PROJECT_ROOT/build/$LANG/$BOOK_TITLE-$LANG.epub" \
-        "$PROJECT_ROOT/build/$LANG/$BOOK_TITLE-$LANG.mobi" || {
+    ebook-convert "$PROJECT_ROOT/build/$LANG/$FILE_PREFIX.epub" \
+        "$PROJECT_ROOT/build/$LANG/$FILE_PREFIX.mobi" || {
             echo "⚠️ Warning: Error building MOBI version"
         }
 elif [ "$SKIP_MOBI" != true ]; then
@@ -174,7 +186,7 @@ if [ "$SKIP_DOCX" != true ]; then
     pandoc "$COMBINED_MD" \
         --from markdown \
         --to docx \
-        --output "$PROJECT_ROOT/build/$LANG/$BOOK_TITLE-$LANG.docx" \
+        --output "$PROJECT_ROOT/build/$LANG/$FILE_PREFIX.docx" \
         --toc \
         --toc-depth=3 \
         --resource-path="$RESOURCE_PATH" \

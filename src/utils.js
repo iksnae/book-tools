@@ -126,7 +126,7 @@ function buildFileNames(language, projectRoot) {
   const buildDir = path.join(projectRoot, 'build', language);
   
   return {
-    input: path.join(buildDir, 'book.md'),
+    input: path.join(buildDir, 'combined.md'),
     pdf: path.join(buildDir, `${filePrefix}.pdf`),
     epub: path.join(buildDir, `${filePrefix}.epub`),
     mobi: path.join(buildDir, `${filePrefix}.mobi`),

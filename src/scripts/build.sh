@@ -59,15 +59,25 @@ export SKIP_HTML
 export SKIP_DOCX
 export VERBOSE
 
-# Ensure we're in the book directory
-if [ -f "book.yaml" ]; then
-  echo "✅ Found book.yaml in current directory"
+# Determine project root - handle both Docker and local environments
+if [ -d "/book" ]; then
+    PROJECT_ROOT="/book"
 else
-  echo "⚠️ No book.yaml found in current directory"
+    PROJECT_ROOT="$(pwd)"
+fi
+
+# Export project root for other scripts
+export PROJECT_ROOT
+
+# Ensure we're in the book directory
+if [ -f "$PROJECT_ROOT/book.yaml" ]; then
+  echo "✅ Found book.yaml in project root"
+else
+  echo "⚠️ No book.yaml found in project root"
 fi
 
 # Create build directory
-mkdir -p build
+mkdir -p "$PROJECT_ROOT/build"
 
 # First, handle image copying with our robust solution
 echo "🖼️ Setting up images..."
@@ -83,7 +93,7 @@ source "$(dirname "$0")/build-language.sh" "en"
 
 # Build Spanish version if requested
 if [ "$ALL_LANGUAGES" = true ]; then
-  if [ -d "book/es" ]; then
+  if [ -d "$PROJECT_ROOT/book/es" ]; then
     echo "🔨 Building Spanish version..."
     source "$(dirname "$0")/build-language.sh" "es"
   else
@@ -94,4 +104,4 @@ fi
 # Print final status
 echo "✅ Build process completed"
 echo "Generated files:"
-find build/ -type f \( -name "*.pdf" -o -name "*.epub" -o -name "*.mobi" -o -name "*.html" -o -name "*.docx" \) -exec du -h {} \; 2>/dev/null || true
+find "$PROJECT_ROOT/build/" -type f \( -name "*.pdf" -o -name "*.epub" -o -name "*.mobi" -o -name "*.html" -o -name "*.docx" \) -exec du -h {} \; 2>/dev/null || true

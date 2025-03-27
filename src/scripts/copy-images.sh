@@ -8,11 +8,18 @@ if [ "$VERBOSE" = true ]; then
     echo "🖼️ Setting up images..."
 fi
 
+# Determine project root - handle both Docker and local environments
+if [ -d "/book" ]; then
+    PROJECT_ROOT="/book"
+else
+    PROJECT_ROOT="$(pwd)"
+fi
+
 # Create main images directory
-mkdir -p "build/images"
+mkdir -p "$PROJECT_ROOT/build/images"
 
 # Create placeholder image in the common images directory first
-cat > "build/images/placeholder.svg" << 'EOF'
+cat > "$PROJECT_ROOT/build/images/placeholder.svg" << 'EOF'
 <svg width="800" height="400" xmlns="http://www.w3.org/2000/svg">
     <rect width="100%" height="100%" fill="#f0f0f0"/>
     <text x="50%" y="45%" font-family="Arial" font-size="24" fill="#666" text-anchor="middle">Placeholder Image</text>
@@ -44,19 +51,19 @@ copy_images() {
 # Function to find all referenced images in markdown files
 find_referenced_images() {
     local lang="$1"
-    if [ -d "book/$lang" ]; then
+    if [ -d "$PROJECT_ROOT/book/$lang" ]; then
         # Find all markdown files and grep for image references
-        find "book/$lang" -type f -name "*.md" -exec grep -ho "!\[.*\](\([^)]*\))" {} \; | sed 's/!\[.*\](\([^)]*\))/\1/g' | sort -u
+        find "$PROJECT_ROOT/book/$lang" -type f -name "*.md" -exec grep -ho "!\[.*\](\([^)]*\))" {} \; | sed 's/!\[.*\](\([^)]*\))/\1/g' | sort -u
     fi
 }
 
 # Copy common images first
-copy_images "art" "build/images"
-copy_images "book/images" "build/images"
-copy_images "resources/images" "build/images"
+copy_images "$PROJECT_ROOT/art" "$PROJECT_ROOT/build/images"
+copy_images "$PROJECT_ROOT/book/images" "$PROJECT_ROOT/build/images"
+copy_images "$PROJECT_ROOT/resources/images" "$PROJECT_ROOT/build/images"
 
 # Handle language-specific images
-for lang_dir in book/*/; do
+for lang_dir in "$PROJECT_ROOT/book/"*/; do
     lang=$(basename "$lang_dir")
     # Skip if not a language directory (e.g., images/)
     if [ "$lang" = "images" ] || [ ! -d "$lang_dir" ]; then
@@ -64,21 +71,35 @@ for lang_dir in book/*/; do
     fi
 
     # Create language-specific build directory
-    mkdir -p "build/$lang/images"
+    mkdir -p "$PROJECT_ROOT/build/$lang/images"
 
     # Copy language-specific images
-    copy_images "book/$lang/images" "build/$lang/images"
+    copy_images "$PROJECT_ROOT/book/$lang/images" "$PROJECT_ROOT/build/$lang/images"
+    
+    # Copy chapter-specific images if they exist
+    for chapter_dir in "$PROJECT_ROOT/book/$lang/chapter-"*/; do
+        if [ -d "$chapter_dir/images" ]; then
+            chapter=$(basename "$chapter_dir")
+            copy_images "$chapter_dir/images" "$PROJECT_ROOT/build/$lang/images"
+        fi
+    done
 
     # Create symlinks for common images
-    if [ -d "build/images" ]; then
-        for img in build/images/*; do
+    if [ -d "$PROJECT_ROOT/build/images" ]; then
+        for img in "$PROJECT_ROOT/build/images/"*; do
             if [ -f "$img" ]; then
                 base=$(basename "$img")
-                if [ ! -e "build/$lang/images/$base" ]; then
-                    ln -sf "../../images/$base" "build/$lang/images/$base" 2>/dev/null || {
+                if [ ! -e "$PROJECT_ROOT/build/$lang/images/$base" ]; then
+                    ln -sf "../../images/$base" "$PROJECT_ROOT/build/$lang/images/$base" 2>/dev/null || {
                         if [ "$VERBOSE" = true ]; then
                             echo "⚠️ Warning: Could not create symlink for $base in $lang"
                         fi
+                        # If symlink fails, try a direct copy
+                        cp "$img" "$PROJECT_ROOT/build/$lang/images/$base" 2>/dev/null || {
+                            if [ "$VERBOSE" = true ]; then
+                                echo "⚠️ Warning: Could not copy $base to $lang"
+                            fi
+                        }
                     }
                 fi
             fi
@@ -94,11 +115,11 @@ for lang_dir in book/*/; do
         base=$(basename "$img_path")
         
         # If image doesn't exist in either location, create symlink to placeholder
-        if [ ! -f "build/$lang/images/$base" ] && [ ! -f "build/images/$base" ]; then
+        if [ ! -f "$PROJECT_ROOT/build/$lang/images/$base" ] && [ ! -f "$PROJECT_ROOT/build/images/$base" ]; then
             if [ "$VERBOSE" = true ]; then
                 echo "⚠️ Missing image: $img_path, using placeholder"
             fi
-            ln -sf "../../images/placeholder.svg" "build/$lang/images/$base" 2>/dev/null || {
+            ln -sf "../../images/placeholder.svg" "$PROJECT_ROOT/build/$lang/images/$base" 2>/dev/null || {
                 if [ "$VERBOSE" = true ]; then
                     echo "⚠️ Warning: Could not create placeholder symlink for $base"
                 fi
@@ -108,9 +129,9 @@ for lang_dir in book/*/; do
 done
 
 # Handle cover image
-for cover in book/images/cover.* book/*/images/cover.* resources/images/cover.*; do
+for cover in "$PROJECT_ROOT/book/images/cover."* "$PROJECT_ROOT/book/"*/images/cover.* "$PROJECT_ROOT/resources/images/cover."*; do
     if [ -f "$cover" ]; then
-        cp "$cover" "build/images/" || {
+        cp "$cover" "$PROJECT_ROOT/build/images/" || {
             if [ "$VERBOSE" = true ]; then
                 echo "⚠️ Warning: Could not copy cover image: $cover"
             fi
@@ -120,11 +141,11 @@ for cover in book/images/cover.* book/*/images/cover.* resources/images/cover.*;
 done
 
 # If no cover image found, create a placeholder
-if ! ls build/images/cover.* >/dev/null 2>&1; then
+if ! ls "$PROJECT_ROOT/build/images/cover.*" >/dev/null 2>&1; then
     if [ "$VERBOSE" = true ]; then
         echo "⚠️ No cover image found, creating placeholder"
     fi
-    cp "build/images/placeholder.svg" "build/images/cover.jpg" || {
+    cp "$PROJECT_ROOT/build/images/placeholder.svg" "$PROJECT_ROOT/build/images/cover.jpg" || {
         if [ "$VERBOSE" = true ]; then
             echo "⚠️ Warning: Could not create cover image placeholder"
         fi
@@ -134,11 +155,11 @@ fi
 # Count images in each directory
 if [ "$VERBOSE" = true ]; then
     echo "📊 Image setup summary:"
-    echo "Common images: $(find build/images -type f | wc -l)"
-    for lang_dir in book/*/; do
+    echo "Common images: $(find "$PROJECT_ROOT/build/images" -type f | wc -l)"
+    for lang_dir in "$PROJECT_ROOT/book/"*/; do
         lang=$(basename "$lang_dir")
-        if [ "$lang" != "images" ] && [ -d "build/$lang/images" ]; then
-            echo "$lang images: $(find "build/$lang/images" -type f | wc -l)"
+        if [ "$lang" != "images" ] && [ -d "$PROJECT_ROOT/build/$lang/images" ]; then
+            echo "$lang images: $(find "$PROJECT_ROOT/build/$lang/images" -type f | wc -l)"
         fi
     done
 fi

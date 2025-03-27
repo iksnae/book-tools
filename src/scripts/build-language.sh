@@ -15,32 +15,35 @@ if [ "$VERBOSE" = true ]; then
     echo "🔨 Building content for language: $LANG"
 fi
 
+# Use PROJECT_ROOT from environment or default to current directory
+PROJECT_ROOT="${PROJECT_ROOT:-$(pwd)}"
+
 # Ensure the language directory exists
-if [ ! -d "book/$LANG" ]; then
-    echo "❌ Error: Language directory book/$LANG does not exist"
+if [ ! -d "$PROJECT_ROOT/book/$LANG" ]; then
+    echo "❌ Error: Language directory $PROJECT_ROOT/book/$LANG does not exist"
     exit 1
 fi
 
 # Create build directory for this language
-mkdir -p "build/$LANG"
-mkdir -p "build/$LANG/images"
+mkdir -p "$PROJECT_ROOT/build/$LANG"
+mkdir -p "$PROJECT_ROOT/build/$LANG/images"
 
 # Copy images from various locations
 if [ "$VERBOSE" = true ]; then
     echo "🖼️ Setting up images..."
 fi
 
-# Copy placeholder image for missing images if it exists
-if [ -f "book/$LANG/images/placeholder.svg" ]; then
-    cp "book/$LANG/images/placeholder.svg" "build/$LANG/images/" || {
-        echo "⚠️ Warning: Could not copy placeholder image"
-    }
-fi
+# Define all image search paths
+IMAGE_PATHS=(
+    "$PROJECT_ROOT/book/images"
+    "$PROJECT_ROOT/book/$LANG/images"
+    "$PROJECT_ROOT/resources/images"
+    "$PROJECT_ROOT/build/images"
+    "$PROJECT_ROOT/build/$LANG/images"
+)
 
-# Copy all available images
-find "book/$LANG" -type f \( -name "*.jpg" -o -name "*.png" -o -name "*.svg" \) -exec cp {} "build/$LANG/images/" \; || {
-    echo "⚠️ Warning: Some images could not be copied"
-}
+# Build the resource path string for pandoc
+RESOURCE_PATH=$(IFS=:; echo "${IMAGE_PATHS[*]}")
 
 # Combine markdown files using combine-markdown.sh
 if [ "$VERBOSE" = true ]; then
@@ -48,7 +51,7 @@ if [ "$VERBOSE" = true ]; then
 fi
 
 # Get book metadata for the combined file
-BOOK_YAML="book.yaml"
+BOOK_YAML="$PROJECT_ROOT/book.yaml"
 if [ -f "$BOOK_YAML" ]; then
     BOOK_TITLE=$(grep "^title:" "$BOOK_YAML" | cut -d ':' -f 2- | sed 's/^[ \t]*//' | tr -d '"')
     BOOK_SUBTITLE=$(grep "^subtitle:" "$BOOK_YAML" | cut -d ':' -f 2- | sed 's/^[ \t]*//' | tr -d '"')
@@ -59,9 +62,9 @@ fi
 
 # Combine the markdown files using the dedicated script
 # This handles chapter-based directories and creates a single combined markdown file
-COMBINED_MD="build/$LANG/combined.md"
+COMBINED_MD="$PROJECT_ROOT/build/$LANG/combined.md"
 SCRIPTS_PATH=$(dirname "$0")
-"$SCRIPTS_PATH/combine-markdown.sh" "$LANG" "$COMBINED_MD" "$BOOK_TITLE" "$BOOK_SUBTITLE" "$(pwd)"
+"$SCRIPTS_PATH/combine-markdown.sh" "$LANG" "$COMBINED_MD" "$BOOK_TITLE" "$BOOK_SUBTITLE" "$PROJECT_ROOT"
 
 # Verify the combined markdown file was created
 if [ ! -f "$COMBINED_MD" ]; then
@@ -81,12 +84,12 @@ if [ "$SKIP_HTML" != true ]; then
     pandoc "$COMBINED_MD" \
         --from markdown \
         --to html5 \
-        --output "build/$LANG/$BOOK_TITLE-$LANG.html" \
+        --output "$PROJECT_ROOT/build/$LANG/$BOOK_TITLE-$LANG.html" \
         --standalone \
         --toc \
         --toc-depth=3 \
-        --resource-path="build/$LANG/images:build/images:build/$LANG/images" \
-        --css=styles/book.css || {
+        --resource-path="$RESOURCE_PATH" \
+        --css="$PROJECT_ROOT/styles/book.css" || {
             echo "❌ Error building HTML version"
             exit 1
         }
@@ -100,10 +103,10 @@ if [ "$SKIP_PDF" != true ]; then
     pandoc "$COMBINED_MD" \
         --from markdown \
         --to pdf \
-        --output "build/$LANG/$BOOK_TITLE-$LANG.pdf" \
+        --output "$PROJECT_ROOT/build/$LANG/$BOOK_TITLE-$LANG.pdf" \
         --toc \
         --toc-depth=3 \
-        --resource-path="build/$LANG/images:build/images:build/$LANG/images" \
+        --resource-path="$RESOURCE_PATH" \
         --pdf-engine=xelatex \
         -V geometry:margin=1in \
         -V documentclass=report \
@@ -122,32 +125,17 @@ if [ "$SKIP_EPUB" != true ]; then
 
     # Check for cover image
     COVER_ARG=""
-    if [ -f "build/images/cover.jpg" ]; then
-        COVER_ARG="--epub-cover-image=build/images/cover.jpg"
-    elif [ -f "book/images/cover.jpg" ]; then
-        cp "book/images/cover.jpg" "build/images/"
-        COVER_ARG="--epub-cover-image=build/images/cover.jpg"
-    elif [ -f "book/images/cover.png" ]; then
-        cp "book/images/cover.png" "build/images/"
-        COVER_ARG="--epub-cover-image=build/images/cover.png"
-    fi
+    for cover in "$PROJECT_ROOT/build/images/cover."* "$PROJECT_ROOT/book/images/cover."* "$PROJECT_ROOT/resources/images/cover."*; do
+        if [ -f "$cover" ]; then
+            COVER_ARG="--epub-cover-image=$cover"
+            break
+        fi
+    done
 
     # Create extract media directory for ensuring images are included
-    MEDIA_DIR="build/$LANG/media"
+    MEDIA_DIR="$PROJECT_ROOT/build/$LANG/media"
     mkdir -p "$MEDIA_DIR"
 
-    # Define all image search paths
-    IMAGE_PATHS=(
-        "build/$LANG/images"
-        "build/images"
-        "book/$LANG/images"
-        "book/images"
-        "resources/images"
-    )
-    
-    # Build the resource path string for pandoc
-    RESOURCE_PATH=$(IFS=:; echo "${IMAGE_PATHS[*]}")
-    
     if [ "$VERBOSE" = true ]; then
         echo "Using resource paths: $RESOURCE_PATH"
         echo "Extracting media to: $MEDIA_DIR"
@@ -156,7 +144,7 @@ if [ "$SKIP_EPUB" != true ]; then
     pandoc "$COMBINED_MD" \
         --from markdown \
         --to epub \
-        --output "build/$LANG/$BOOK_TITLE-$LANG.epub" \
+        --output "$PROJECT_ROOT/build/$LANG/$BOOK_TITLE-$LANG.epub" \
         --toc \
         --toc-depth=3 \
         --extract-media="$MEDIA_DIR" \
@@ -167,8 +155,8 @@ if [ "$SKIP_EPUB" != true ]; then
         }
 
     # Check if EPUB was generated with correct size
-    if [ -f "build/$LANG/$BOOK_TITLE-$LANG.epub" ]; then
-        EPUB_SIZE=$(du -h "build/$LANG/$BOOK_TITLE-$LANG.epub" | cut -f1)
+    if [ -f "$PROJECT_ROOT/build/$LANG/$BOOK_TITLE-$LANG.epub" ]; then
+        EPUB_SIZE=$(du -h "$PROJECT_ROOT/build/$LANG/$BOOK_TITLE-$LANG.epub" | cut -f1)
         if [ "$VERBOSE" = true ]; then
             echo "✅ EPUB generated successfully: build/$LANG/$BOOK_TITLE-$LANG.epub (Size: $EPUB_SIZE)"
         fi
@@ -180,8 +168,8 @@ if [ "$SKIP_MOBI" != true ] && command -v ebook-convert >/dev/null; then
     if [ "$VERBOSE" = true ]; then
         echo "📱 Building MOBI version..."
     fi
-    ebook-convert "build/$LANG/$BOOK_TITLE-$LANG.epub" \
-        "build/$LANG/$BOOK_TITLE-$LANG.mobi" || {
+    ebook-convert "$PROJECT_ROOT/build/$LANG/$BOOK_TITLE-$LANG.epub" \
+        "$PROJECT_ROOT/build/$LANG/$BOOK_TITLE-$LANG.mobi" || {
             echo "⚠️ Warning: Error building MOBI version"
         }
 elif [ "$SKIP_MOBI" != true ]; then
@@ -206,10 +194,10 @@ if [ "$SKIP_DOCX" != true ]; then
     pandoc "$COMBINED_MD" \
         --from markdown \
         --to docx \
-        --output "build/$LANG/$BOOK_TITLE-$LANG.docx" \
+        --output "$PROJECT_ROOT/build/$LANG/$BOOK_TITLE-$LANG.docx" \
         --toc \
         --toc-depth=3 \
-        --resource-path="build/$LANG/images:build/images:build/$LANG/images" \
+        --resource-path="$RESOURCE_PATH" \
         $REFERENCE_DOC || {
             echo "❌ Error building DOCX version"
             exit 1
@@ -218,5 +206,5 @@ fi
 
 if [ "$VERBOSE" = true ]; then
     echo "✅ Build completed for language: $LANG"
-    ls -lh "build/$LANG"
+    ls -lh "$PROJECT_ROOT/build/$LANG"
 fi

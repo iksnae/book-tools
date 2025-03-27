@@ -123,36 +123,16 @@ if [ "$SKIP_EPUB" != true ]; then
         echo "📱 Building EPUB version..."
     fi
 
-    # Check for cover image
-    COVER_ARG=""
-    for cover in "$PROJECT_ROOT/build/images/cover."* "$PROJECT_ROOT/book/images/cover."* "$PROJECT_ROOT/resources/images/cover."*; do
-        if [ -f "$cover" ]; then
-            COVER_ARG="--epub-cover-image=$cover"
-            break
-        fi
-    done
-
-    # Create extract media directory for ensuring images are included
-    MEDIA_DIR="$PROJECT_ROOT/build/$LANG/media"
-    mkdir -p "$MEDIA_DIR"
-
-    if [ "$VERBOSE" = true ]; then
-        echo "Using resource paths: $RESOURCE_PATH"
-        echo "Extracting media to: $MEDIA_DIR"
-    fi
-
-    pandoc "$COMBINED_MD" \
-        --from markdown \
-        --to epub \
-        --output "$PROJECT_ROOT/build/$LANG/$BOOK_TITLE-$LANG.epub" \
-        --toc \
-        --toc-depth=3 \
-        --extract-media="$MEDIA_DIR" \
-        --resource-path="$RESOURCE_PATH" \
-        $COVER_ARG || {
-            echo "❌ Error building EPUB version"
-            exit 1
-        }
+    # Use the dedicated EPUB generation script for better image handling
+    SCRIPTS_PATH=$(dirname "$0")
+    "$SCRIPTS_PATH/generate-epub.sh" \
+        "$LANG" \
+        "$COMBINED_MD" \
+        "$PROJECT_ROOT/build/$LANG/$BOOK_TITLE-$LANG.epub" \
+        "$BOOK_TITLE" \
+        "$BOOK_SUBTITLE" \
+        "resources" \
+        "$PROJECT_ROOT"
 
     # Check if EPUB was generated with correct size
     if [ -f "$PROJECT_ROOT/build/$LANG/$BOOK_TITLE-$LANG.epub" ]; then

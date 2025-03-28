@@ -87,18 +87,25 @@ source "$(dirname "$0")/copy-images.sh"
 echo "📚 Loading configuration..."
 source "$(dirname "$0")/load-config.sh"
 
-# Build English version
+# Build English version first (always)
 echo "🔨 Building English version..."
 source "$(dirname "$0")/build-language.sh" "en"
 
-# Build Spanish version if requested
+# Build all other language versions if requested
 if [ "$ALL_LANGUAGES" = true ]; then
-  if [ -d "$PROJECT_ROOT/book/es" ]; then
-    echo "🔨 Building Spanish version..."
-    source "$(dirname "$0")/build-language.sh" "es"
-  else
-    echo "⚠️ Spanish content directory not found, skipping"
-  fi
+  # Find all language directories
+  for lang_dir in "$PROJECT_ROOT/book"/*/ ; do
+    # Extract language code from directory path
+    lang_code=$(basename "$lang_dir")
+    
+    # Skip English (already built) and non-language directories
+    if [ "$lang_code" != "en" ] && [ "$lang_code" != "images" ]; then
+      if [ -d "$lang_dir" ]; then
+        echo "🔨 Building $lang_code version..."
+        source "$(dirname "$0")/build-language.sh" "$lang_code"
+      fi
+    fi
+  done
 fi
 
 # Print final status

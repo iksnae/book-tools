@@ -16,6 +16,51 @@ $endif$
 $if(description-meta)$
   <meta name="description" content="$description-meta$" />
 $endif$
+
+  <!-- Open Graph / Social Media Metadata -->
+  <meta property="og:type" content="book" />
+  <meta property="og:title" content="$if(title-prefix)$$title-prefix$ – $endif$$pagetitle$" />
+$if(description-meta)$
+  <meta property="og:description" content="$description-meta$" />
+$endif$
+$if(author-meta)$
+  <meta property="og:author" content="$author-meta$" />
+$endfor$
+  <meta property="og:site_name" content="$if(site-name)$$site-name$$else$$if(title-prefix)$$title-prefix$$endif$$endif$" />
+  <meta property="og:locale" content="$lang$" />
+  
+  <!-- If there's a cover image available, use it for Open Graph -->
+  $if(cover-image)$
+  <meta property="og:image" content="$cover-image$" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Cover image for $pagetitle$" />
+  $endif$
+  
+  <!-- Twitter Card data -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="$if(title-prefix)$$title-prefix$ – $endif$$pagetitle$" />
+$if(description-meta)$
+  <meta name="twitter:description" content="$description-meta$" />
+$endif$
+$if(twitter-handle)$
+  <meta name="twitter:creator" content="$twitter-handle$" />
+  <meta name="twitter:site" content="$twitter-handle$" />
+$endif$
+  $if(cover-image)$
+  <meta name="twitter:image" content="$cover-image$" />
+  $endif$
+  
+  <!-- Language metadata for better SEO -->
+  <link rel="alternate" hreflang="$lang$" href="$if(canonical-url)$$canonical-url$$endif$" />
+  <meta property="og:locale" content="$lang$" />
+  
+  <!-- Alternate language versions -->
+$for(alternate-*)$
+  <link rel="alternate" hreflang="$alternate-*key$" href="$alternate-*val$" />
+$endfor$
+
   <title>$if(title-prefix)$$title-prefix$ – $endif$$pagetitle$</title>
   <style>
     /* Default styles from pandoc */

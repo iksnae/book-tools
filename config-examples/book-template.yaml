@@ -54,6 +54,9 @@ html:
   toc_depth: 3  # Table of contents depth
   section_divs: true  # Put sections in div elements
   self_contained: true  # Create a standalone HTML file with no external dependencies
+  cover_image: "book/images/cover.png"  # Default fallback cover image
+  responsive: true     # Apply responsive design for mobile devices
+  base_url: "https://yourdomain.com/books/your-book"  # Base URL for canonical links
 
 # DOCX settings
 docx:
@@ -67,3 +70,16 @@ metadata:
   description: "A comprehensive guide to writing and publishing books using Markdown and the Book Template system."
   subject: "Writing, Publishing, Technology"
   keywords: "writing, publishing, markdown, digital books, self-publishing"
+  
+# Social media and sharing
+social:
+  cover_image: "book/images/cover.png"  # Default fallback cover image
+  # Language-specific cover images (recommended)
+  language_covers:
+    en: "book/en/images/cover.png"  # English cover
+    es: "book/es/images/cover.png"  # Spanish cover
+    fr: "book/fr/images/cover.png"  # French cover
+  description: "A comprehensive guide to writing and publishing books using Markdown and the Book Template system."
+  twitter_handle: "@yourusername"  # Optional Twitter username
+  facebook_page: "yourpagename"    # Optional Facebook page
+  site_name: "Your Website"        # Used for og:site_name

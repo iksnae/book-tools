@@ -40,6 +40,8 @@ table {
   border-collapse: collapse;
   width: 100%;
   margin: 1em 0;
+  overflow-x: auto;
+  display: block;
 }
 
 th, td {
@@ -52,9 +54,26 @@ th {
   background-color: #f2f2f2;
 }
 
+/* Enhanced image styling */
 img {
   max-width: 100%;
   height: auto;
+  display: block;
+  margin: 0 auto;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+figure {
+  max-width: 100%;
+  margin: 1.5em auto;
+}
+
+figcaption {
+  font-style: italic;
+  text-align: center;
+  font-size: 0.9em;
+  margin-top: 0.5em;
 }
 
 blockquote {
@@ -62,4 +81,29 @@ blockquote {
   padding-left: 1em;
   margin-left: 0;
   color: #666;
+}
+
+/* Basic responsive adjustments */
+@media only screen and (max-width: 768px) {
+  body {
+    padding: 15px;
+  }
+  
+  img {
+    padding: 5px;
+  }
+}
+
+@media only screen and (max-width: 480px) {
+  body {
+    padding: 10px;
+  }
+  
+  h1 {
+    font-size: 1.8em;
+  }
+  
+  h2 {
+    font-size: 1.5em;
+  }
 }

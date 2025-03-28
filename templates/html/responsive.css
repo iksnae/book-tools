@@ -1,3 +1,4 @@
+/* Base styles */
 body {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
   line-height: 1.6;
@@ -34,8 +35,11 @@ pre {
   padding: 1em;
   border-radius: 5px;
   overflow-x: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
 }
 
+/* Table styles with horizontal scroll for mobile */
 table {
   border-collapse: collapse;
   width: 100%;
@@ -44,17 +48,17 @@ table {
   display: block;
 }
 
+thead {
+  background-color: #f2f2f2;
+}
+
 th, td {
   padding: 8px;
   text-align: left;
   border-bottom: 1px solid #ddd;
 }
 
-th {
-  background-color: #f2f2f2;
-}
-
-/* Enhanced image styling */
+/* Enhanced image styling for better mobile display */
 img {
   max-width: 100%;
   height: auto;
@@ -83,7 +87,19 @@ blockquote {
   color: #666;
 }
 
-/* Basic responsive adjustments */
+/* Navigation styles for Table of Contents */
+nav#TOC {
+  background-color: #f8f8f8;
+  padding: 1em;
+  border-radius: 5px;
+  margin-bottom: 2em;
+}
+
+nav#TOC ul {
+  padding-left: 1.5em;
+}
+
+/* Media queries for different screen sizes */
 @media only screen and (max-width: 768px) {
   body {
     padding: 15px;
@@ -91,6 +107,14 @@ blockquote {
   
   img {
     padding: 5px;
+  }
+  
+  table {
+    font-size: 0.9em;
+  }
+  
+  nav#TOC {
+    padding: 0.8em;
   }
 }
 
@@ -105,5 +129,25 @@ blockquote {
   
   h2 {
     font-size: 1.5em;
+  }
+  
+  h3 {
+    font-size: 1.2em;
+  }
+  
+  pre, code {
+    font-size: 0.9em;
+    padding: 0.5em;
+  }
+  
+  nav#TOC {
+    font-size: 0.9em;
+  }
+}
+
+/* Optional: For very large screens */
+@media only screen and (min-width: 1600px) {
+  body {
+    max-width: 1000px;
   }
 }

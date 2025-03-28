@@ -37,6 +37,9 @@ function loadExtendedConfig(config) {
   config.formatSettings.html.tocDepth = config.formatSettings.html.tocDepth || config.html?.toc_depth || 3;
   config.formatSettings.html.sectionDivs = config.formatSettings.html.sectionDivs || config.html?.section_divs || true;
   config.formatSettings.html.selfContained = config.formatSettings.html.selfContained || config.html?.self_contained || true;
+  // Add responsive option, default to true
+  config.formatSettings.html.responsive = config.formatSettings.html.responsive !== undefined ? 
+    config.formatSettings.html.responsive : config.html?.responsive !== false;
   
   // MOBI configuration - minimal for now
   config.formatSettings.mobi = config.formatSettings.mobi || {};
@@ -175,7 +178,7 @@ function getDefaultConfig() {
  */
 function safeQuote(str) {
   // Replace double quotes with escaped double quotes
-  const escaped = str.replace(/"/g, '\\"');
+  const escaped = str.replace(/\"/g, '\\\"');
   // Wrap in double quotes
   return `"${escaped}"`;
 }
@@ -263,12 +266,32 @@ function getPandocArgs(config, format, language) {
   } else if (format === 'html') {
     const htmlSettings = formatSettings.html || {};
     
-    if (htmlSettings.template && fs.existsSync(htmlSettings.template)) {
-      args.push(`--template=${safeQuote(htmlSettings.template)}`);
-    }
-    
-    if (htmlSettings.css && fs.existsSync(htmlSettings.css)) {
-      args.push(`--css=${safeQuote(htmlSettings.css)}`);
+    // Use responsive template and CSS if the responsive option is enabled
+    if (htmlSettings.responsive !== false) {
+      // Check for responsive template
+      const responsiveTemplate = path.join(process.cwd(), 'templates/html/responsive.html');
+      if (fs.existsSync(responsiveTemplate)) {
+        args.push(`--template=${safeQuote(responsiveTemplate)}`);
+      } else if (htmlSettings.template && fs.existsSync(htmlSettings.template)) {
+        args.push(`--template=${safeQuote(htmlSettings.template)}`);
+      }
+      
+      // Check for responsive CSS
+      const responsiveCSS = path.join(process.cwd(), 'templates/html/responsive.css');
+      if (fs.existsSync(responsiveCSS)) {
+        args.push(`--css=${safeQuote(responsiveCSS)}`);
+      } else if (htmlSettings.css && fs.existsSync(htmlSettings.css)) {
+        args.push(`--css=${safeQuote(htmlSettings.css)}`);
+      }
+    } else {
+      // Use standard (non-responsive) templates
+      if (htmlSettings.template && fs.existsSync(htmlSettings.template)) {
+        args.push(`--template=${safeQuote(htmlSettings.template)}`);
+      }
+      
+      if (htmlSettings.css && fs.existsSync(htmlSettings.css)) {
+        args.push(`--css=${safeQuote(htmlSettings.css)}`);
+      }
     }
     
     if (htmlSettings.toc !== false) {

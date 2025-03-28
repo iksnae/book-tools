@@ -14,6 +14,7 @@ Book Tools helps you create beautiful books in multiple formats (PDF, EPUB, MOBI
 - 🔧 **GitHub Actions**: Built-in CI/CD workflows for automated builds
 - 📝 **Markdown-based**: Write in plain text with rich formatting options
 - 🎨 **Customizable**: Templates, styles, and formatting options
+- 📱 **Mobile-friendly HTML**: Responsive design for better reading on all devices
 
 ## Overview
 
@@ -26,6 +27,7 @@ Book Tools provides a comprehensive suite of tools for book creation and managem
 - **Verbose Mode**: Detailed output options for debugging and progress tracking
 - **Docker Support**: Containerized building with all dependencies included
 - **GitHub Actions**: Built-in CI/CD workflows for automated builds and releases
+- **Mobile-friendly HTML**: Responsive output with image scaling for better reading on all devices
 
 This project provides shell scripts for building books from markdown files using Pandoc and other tools. The scripts handle:
 
@@ -293,6 +295,9 @@ pdf:
 epub:
   coverImage: "book/images/cover.png"
   css: "templates/epub/style.css"
+  
+html:
+  responsive: true  # Enable/disable mobile-friendly features
 ```
 
 ### File Naming
@@ -311,6 +316,16 @@ Your output files will be named:
 - `my-awesome-book.docx`
 
 If not specified, the default behavior is to use `book` as the file prefix.
+
+## Mobile-Friendly HTML
+
+The HTML output is now mobile-friendly by default, with responsive features that make your book look great on all devices. Key features include:
+
+- Viewport meta tag for proper scaling on mobile devices
+- Responsive image handling with automatic scaling to fit screen width
+- Media queries for different device sizes
+
+For more details, see the [Mobile-Friendly HTML documentation](docs/mobile-friendly-html.md).
 
 ## Testing
 

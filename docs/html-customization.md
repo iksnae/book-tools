@@ -47,20 +47,69 @@ You can customize the HTML styling by editing:
 - `resources/css/html.css` for global styles
 - `resources/templates/html/default.html` for template structure
 
-### Image Styling Examples
+## Enhanced Image Styling Options
 
-The following HTML classes are available for image styling:
+Book Tools now provides multiple ways to control how images appear in your HTML book. Use these HTML classes to customize image display for different needs:
+
+### Basic Images
+
+By default, all images are responsive with proper scaling for different screen sizes.
 
 ```html
-<!-- Center an image with a caption -->
+<!-- Standard responsive image -->
+<img src="path/to/image.jpg" alt="Image description">
+```
+
+### Images with Captions
+
+```html
+<!-- Image with caption -->
 <figure>
   <img src="path/to/image.jpg" alt="Image description">
   <figcaption>This is a caption for the image</figcaption>
 </figure>
+```
 
-<!-- Image with specific styling -->
-<div class="image-container">
+### Controlling Image Size and Layout
+
+```html
+<!-- Container for better control of medium-sized images -->
+<div class="medium-image">
   <img src="path/to/image.jpg" alt="Image description">
+</div>
+
+<!-- Full-width image that extends beyond content width -->
+<div class="full-width-image">
+  <img src="path/to/image.jpg" alt="Image description">
+</div>
+
+<!-- For very large images that need scrolling -->
+<div class="large-image">
+  <img src="path/to/image.jpg" alt="Image description">
+</div>
+
+<!-- Small inline image (within text) -->
+<span>Text with an <img class="inline-image" src="icon.png" alt="small icon"> inside it.</span>
+```
+
+### Image Galleries
+
+For displaying multiple images in a grid layout:
+
+```html
+<div class="image-gallery">
+  <figure>
+    <img src="image1.jpg" alt="First image">
+    <figcaption>First image caption</figcaption>
+  </figure>
+  <figure>
+    <img src="image2.jpg" alt="Second image">
+    <figcaption>Second image caption</figcaption>
+  </figure>
+  <figure>
+    <img src="image3.jpg" alt="Third image">
+    <figcaption>Third image caption</figcaption>
+  </figure>
 </div>
 ```
 

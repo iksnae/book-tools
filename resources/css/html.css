@@ -3,10 +3,14 @@ body {
   max-width: 800px;
   margin: 0 auto;
   padding: 1em;
-  line-height: 1.5;
+  line-height: 1.6;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   color: #333;
   background-color: #fff;
+  font-size: 18px;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -55,24 +59,116 @@ img {
   display: block;
   margin: 1.5em auto;
   border-radius: 4px;
+  box-sizing: border-box;
+  padding: 0;
+  object-fit: contain;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* Responsive image sizing with different screen widths */
+@media (min-width: 1200px) {
+  img {
+    max-width: 90%;
+  }
+}
+
+@media (max-width: 800px) {
+  img {
+    max-width: 95%;
+    margin: 1.2em auto;
+  }
+}
+
+@media (max-width: 480px) {
+  img {
+    max-width: 100%;
+    margin: 1em auto;
+    padding: 0;
+  }
 }
 
 /* Image container for better control */
 .image-container {
   text-align: center;
   margin: 2em 0;
+  padding: 0.5em;
+  max-width: 100%;
 }
 
 figure {
-  margin: 2em 0;
+  margin: 2em auto;
   text-align: center;
+  max-width: 100%;
+  padding: 0;
 }
 
 figcaption {
   font-size: 0.9em;
   color: #666;
-  margin-top: 0.5em;
+  margin-top: 0.8em;
   font-style: italic;
+  padding: 0 1em;
+  line-height: 1.4;
+}
+
+/* For very large images */
+.large-image {
+  max-width: 100%;
+  overflow-x: auto;
+  text-align: center;
+}
+
+.large-image img {
+  max-width: none;
+  max-height: 80vh; /* Limit height to 80% of viewport height */
+}
+
+/* Full-width images that break out of the content area */
+.full-width-image {
+  margin-left: calc(-50vw + 50%);
+  margin-right: calc(-50vw + 50%);
+  max-width: 100vw;
+  text-align: center;
+}
+
+.full-width-image img {
+  max-width: 95%;
+}
+
+/* For medium-sized images, provide some breathing room */
+.medium-image {
+  max-width: 80%;
+  margin: 2em auto;
+}
+
+/* Small inline images */
+.inline-image {
+  display: inline-block;
+  margin: 0 0.3em;
+  vertical-align: middle;
+  max-height: 1.5em;
+}
+
+/* Image gallery for multiple images */
+.image-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1em;
+  margin: 2em 0;
+}
+
+.image-gallery figure {
+  flex: 1 1 300px;
+  margin: 0.5em;
+  max-width: 45%;
+}
+
+@media (max-width: 600px) {
+  .image-gallery figure {
+    flex: 1 1 100%;
+    max-width: 100%;
+  }
 }
 
 table {
@@ -159,10 +255,6 @@ nav ul {
   h2 { font-size: 1.4em; }
   h3 { font-size: 1.2em; }
   
-  img {
-    margin: 1em auto;
-  }
-  
   blockquote {
     margin-left: 0;
     padding-left: 0.8em;
@@ -211,4 +303,33 @@ nav ul {
   nav {
     background-color: #161b22;
   }
+}
+
+p {
+  margin: 1.2em 0;
+  line-height: 1.7;
+}
+
+/* Optimal reading width on larger screens */
+@media (min-width: 1200px) {
+  body {
+    max-width: 768px;
+    padding: 2em;
+  }
+  
+  p {
+    font-size: 19px;
+  }
+}
+
+/* Reading mode with slightly off-white background for less eye strain */
+.reading-mode {
+  background-color: #fafaf8;
+  color: #222;
+}
+
+/* Adjust letter spacing and word spacing for better readability */
+p, li, blockquote {
+  letter-spacing: 0.01em;
+  word-spacing: 0.05em;
 } 

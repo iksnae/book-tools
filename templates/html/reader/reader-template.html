@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${BOOK_TITLE}</title>
+  <link rel="stylesheet" href="reader.css">
+  <!-- Web fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville&family=Merriweather&family=Roboto&family=Source+Sans+Pro&display=swap" rel="stylesheet">
+</head>
+<body class="theme-light">
+  <div class="reader-app">
+    <div class="reader-container">
+      <!-- PANDOC CONTENT WILL BE INJECTED HERE -->
+      ${BOOK_CONTENT}
+    </div>
+    
+    <button id="toggle-controls" class="control-toggle" aria-label="Show reading options">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17 11h1a3 3 0 0 1 0 6h-1"></path>
+        <path d="M9 12v6"></path>
+        <path d="M13 12v6"></path>
+        <path d="M9 6V3"></path>
+        <path d="M13 6V3"></path>
+        <path d="M9 18h4"></path>
+        <path d="M9 6h4"></path>
+        <circle cx="11" cy="9" r="2"></circle>
+      </svg>
+    </button>
+    
+    <div class="reader-controls">
+      <div class="control-section">
+        <div class="control-group">
+          <label>Font Size</label>
+          <div class="button-group">
+            <button id="font-size-smaller" aria-label="Decrease font size">A-</button>
+            <div class="font-size-display">18px</div>
+            <button id="font-size-larger" aria-label="Increase font size">A+</button>
+          </div>
+        </div>
+        
+        <div class="control-group">
+          <label for="font-family-control">Font</label>
+          <select id="font-family-control" aria-label="Select font family">
+            <option value="'Libre Baskerville', Georgia, serif">Baskerville</option>
+            <option value="'Merriweather', Georgia, serif">Merriweather</option>
+            <option value="'Source Sans Pro', sans-serif">Source Sans</option>
+            <option value="'Roboto', sans-serif">Roboto</option>
+            <option value="Georgia, serif">Georgia</option>
+            <option value="'Courier New', Courier, monospace">Courier</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="control-section">
+        <div class="control-group">
+          <label for="theme-control">Theme</label>
+          <div class="theme-selector">
+            <button class="theme-button theme-light" data-theme="light" aria-label="Light theme"></button>
+            <button class="theme-button theme-sepia" data-theme="sepia" aria-label="Sepia theme"></button>
+            <button class="theme-button theme-dark" data-theme="dark" aria-label="Dark theme"></button>
+          </div>
+        </div>
+        
+        <div class="control-group">
+          <label for="line-height-control">Line Spacing</label>
+          <input type="range" id="line-height-control" min="1.2" max="2.2" step="0.2" value="1.6" 
+                 aria-label="Adjust line spacing">
+        </div>
+      </div>
+      
+      <div class="control-section">
+        <div class="control-group">
+          <label for="margin-width-control">Margins</label>
+          <input type="range" id="margin-width-control" min="5" max="25" step="5" value="15" 
+                 aria-label="Adjust margin width">
+        </div>
+        
+        <button id="close-controls" class="close-button" aria-label="Close reading options">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <script src="reader.js"></script>
+</body>
+</html>

@@ -37,6 +37,9 @@ function loadExtendedConfig(config) {
   config.formatSettings.html.tocDepth = config.formatSettings.html.tocDepth || config.html?.toc_depth || 3;
   config.formatSettings.html.sectionDivs = config.formatSettings.html.sectionDivs || config.html?.section_divs || true;
   config.formatSettings.html.selfContained = config.formatSettings.html.selfContained || config.html?.self_contained || true;
+  // Add enhanced reader option
+  config.formatSettings.html.enhancedReader = config.formatSettings.html.enhancedReader !== undefined ? 
+    config.formatSettings.html.enhancedReader : config.html?.enhanced_reader || false;
   
   // MOBI configuration - minimal for now
   config.formatSettings.mobi = config.formatSettings.mobi || {};
@@ -175,7 +178,7 @@ function getDefaultConfig() {
  */
 function safeQuote(str) {
   // Replace double quotes with escaped double quotes
-  const escaped = str.replace(/"/g, '\\"');
+  const escaped = str.replace(/\"/g, '\\\"');
   // Wrap in double quotes
   return `"${escaped}"`;
 }
@@ -286,6 +289,9 @@ function getPandocArgs(config, format, language) {
     if (htmlSettings.selfContained) {
       args.push('--self-contained');
     }
+    
+    // Note: Enhanced reader option doesn't affect Pandoc arguments
+    // It's handled in post-processing by reader-wrapper.js
   } else if (format === 'docx') {
     const docxSettings = formatSettings.docx || {};
     

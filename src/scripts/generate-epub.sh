@@ -91,8 +91,8 @@ mkdir -p "$MEDIA_DIR"
 # Enhanced implementation for image copying to ensure all images are found
 echo "Ensuring all images are available for EPUB..."
 
-# Find all image references in the markdown
-REFERENCES=$(grep -o -E '!\[.*?\]\((.*?)\)' "$INPUT_FILE" | sed -E 's/!\[.*?\]\((.*?)\)/\1/g' | sort -u)
+# Find all image references in the markdown (POSIX-compatible regex)
+REFERENCES=$(grep -o -E '!\[[^]]*\]\([^)]+\)' "$INPUT_FILE" | sed -E 's/!\[[^]]*\]\(([^)]+)\)/\1/g' | sort -u)
 
 # Copy all referenced images to the media directory to ensure they're included
 echo "Referenced images:"
@@ -167,9 +167,18 @@ echo "Using resource paths: $RESOURCE_PATH"
 echo "Author: $AUTHOR"
 echo "Publisher: $PUBLISHER"
 
+# Convert to absolute paths before cd'ing into input directory
+INPUT_FILE=$(cd "$(dirname "$INPUT_FILE")" && echo "$(pwd)/$(basename "$INPUT_FILE")")
+OUTPUT_FILE_ABS=$(cd "$(dirname "$OUTPUT_FILE")" 2>/dev/null && echo "$(pwd)/$(basename "$OUTPUT_FILE")" || echo "$OUTPUT_FILE")
+mkdir -p "$(dirname "$OUTPUT_FILE_ABS")"
+
+# Change to input file directory so relative image paths resolve correctly
+INPUT_DIR=$(dirname "$INPUT_FILE")
+pushd "$INPUT_DIR" > /dev/null
+
 # Generate EPUB
 pandoc "$INPUT_FILE" \
-    -o "$OUTPUT_FILE" \
+    -o "$OUTPUT_FILE_ABS" \
     -f markdown \
     -t epub \
     --metadata title="$BOOK_TITLE" \
@@ -187,11 +196,13 @@ pandoc "$INPUT_FILE" \
     $EPUB_STYLE \
     $COVER_IMAGE
 
+popd > /dev/null
+
 # Check if EPUB was generated successfully
-if [ -f "$OUTPUT_FILE" ] && [ -s "$OUTPUT_FILE" ]; then
-    echo "✅ EPUB generated successfully: $OUTPUT_FILE"
+if [ -f "$OUTPUT_FILE_ABS" ] && [ -s "$OUTPUT_FILE_ABS" ]; then
+    echo "✅ EPUB generated successfully: $OUTPUT_FILE_ABS"
     # Get file size
-    FILE_SIZE=$(du -h "$OUTPUT_FILE" | cut -f1)
+    FILE_SIZE=$(du -h "$OUTPUT_FILE_ABS" | cut -f1)
     echo "File size: $FILE_SIZE"
 else
     echo "❌ Error: Something went wrong during EPUB generation."

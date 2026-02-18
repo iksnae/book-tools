@@ -120,8 +120,14 @@ if [ "$STRUCTURE_TYPE" = "chapter-based" ]; then
     CHAPTER_NUM=$(echo "$CHAPTER_NAME" | sed -E 's/chapter-0*([0-9]+).*/\1/')
     echo -e "\n# Chapter $CHAPTER_NUM\n" >> "$OUTPUT_PATH"
     
-    # Get all markdown files in this chapter
-    CHAPTER_FILES=$(find "$CHAPTER" -maxdepth 1 -name "*.md" | sort)
+    # Get all markdown files in this chapter (including sections/ subdirectory)
+    # First collect top-level .md files, then sections/*.md (sorted within each group)
+    CHAPTER_FILES_TOP=$(find "$CHAPTER" -maxdepth 1 -name "*.md" | sort)
+    CHAPTER_FILES_SECTIONS=""
+    if [ -d "$CHAPTER/sections" ]; then
+      CHAPTER_FILES_SECTIONS=$(find "$CHAPTER/sections" -maxdepth 1 -name "*.md" | sort)
+    fi
+    CHAPTER_FILES=$(echo -e "${CHAPTER_FILES_TOP}\n${CHAPTER_FILES_SECTIONS}" | sed '/^$/d')
     
     if [ -z "$CHAPTER_FILES" ]; then
       echo "No markdown files found in $CHAPTER"
@@ -139,7 +145,13 @@ if [ "$STRUCTURE_TYPE" = "chapter-based" ]; then
       echo "" >> "$OUTPUT_PATH"
       
       # Remove YAML front matter if present and append content
-      sed -n '/^---$/,/^---$/!p' "$FILE" | sed '/./,$!d' >> "$OUTPUT_PATH"
+      # CRITICAL FIX: Rewrite image paths to simple relative paths (images/)
+      # This works because images are copied to build/$LANG/images/ before markdown concatenation
+      # Pandoc can then find them relative to the combined.md file location
+      sed -n '/^---$/,/^---$/!p' "$FILE" | sed '/./,$!d' | \
+        sed -e 's|\!\[\([^]]*\)\](\.\/images/|\!\[\1\](images/|g' \
+            -e 's|\!\[\([^]]*\)\](images/|\!\[\1\](images/|g' \
+            -e 's|\!\[\([^]]*\)\](\.\.\/\.\.\/images/|\!\[\1\](images/|g' >> "$OUTPUT_PATH"
       echo "" >> "$OUTPUT_PATH"
       echo "" >> "$OUTPUT_PATH"
     done

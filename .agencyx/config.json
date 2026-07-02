@@ -1,0 +1,30 @@
+{
+  "engagement" : {
+    "displayName" : "book-tools",
+    "id" : "iksnae/book-tools",
+    "localPath" : ""
+  },
+  "indexIgnore" : [
+
+  ],
+  "modelOverrides" : {
+
+  },
+  "provider" : {
+    "kind" : "deepseek",
+    "model" : "deepseek-v4-flash"
+  },
+  "schemaVersion" : "agencyx.config.v1",
+  "verification" : {
+    "runCommand" : "node bin/book.js",
+    "testCommand" : "npm test",
+    "timeoutMs" : 300000
+  },
+  "vision" : {
+    "briefPaths" : [
+      "README.md",
+      "CLI.md",
+      "TESTING.md"
+    ]
+  }
+}

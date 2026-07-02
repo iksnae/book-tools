@@ -1,0 +1,6 @@
+# The work repo tracks ONLY the primary agency files: config + permissions.
+# Everything else (chat, runs, research, runtime state, the agency's private brain) is local/out-of-tree.
+*
+!.gitignore
+!config.json
+!permissions.toml

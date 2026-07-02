@@ -24,7 +24,8 @@
     "briefPaths" : [
       "README.md",
       "CLI.md",
-      "TESTING.md"
+      "TESTING.md",
+      "docs/VISION.md"
     ]
   }
 }

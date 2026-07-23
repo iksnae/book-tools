@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="$lang$">
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>$title$</title>
+  $if(css)$
+  <link rel="stylesheet" href="$css$">
+  $else$
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      line-height: 1.6;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      color: #333;
+    }
+    
+    h1, h2, h3, h4, h5, h6 {
+      color: #222;
+      margin-top: 1.5em;
+      margin-bottom: 0.5em;
+    }
+    
+    img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      margin: 0 auto;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+    
+    figure {
+      max-width: 100%;
+      margin: 1.5em auto;
+    }
+    
+    figcaption {
+      font-style: italic;
+      text-align: center;
+      font-size: 0.9em;
+      margin-top: 0.5em;
+    }
+    
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 1em 0;
+      overflow-x: auto;
+      display: block;
+    }
+    
+    pre {
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    
+    @media only screen and (max-width: 768px) {
+      body {
+        padding: 15px;
+      }
+      
+      img {
+        padding: 5px;
+      }
+    }
+    
+    @media only screen and (max-width: 480px) {
+      body {
+        padding: 10px;
+      }
+      
+      h1 {
+        font-size: 1.8em;
+      }
+      
+      h2 {
+        font-size: 1.5em;
+      }
+    }
+  </style>
+  $endif$
+  $for(header-includes)$
+  $header-includes$
+  $endfor$
+</head>
+<body>
+  <header>
+    <h1>$title$</h1>
+    $if(subtitle)$<h2>$subtitle$</h2>$endif$
+    $if(author)$<p>$author$</p>$endif$
+  </header>
+  $if(toc)$
+  <nav id="$idprefix$TOC">
+    $table-of-contents$
+  </nav>
+  $endif$
+  <main>
+    $body$
+  </main>
+  $if(include-after)$
+  $for(include-after)$
+  $include-after$
+  $endfor$
+  $endif$
+</body>
+</html>
